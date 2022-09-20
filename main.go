@@ -5,17 +5,20 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 
 	"go.i3wm.org/i3/v4"
 )
 
 var (
-	titlefi         *os.File
-	i3statusRefresh *exec.Cmd
-	config          = struct {
-		CharLimit int               `json:"char_limit"`
-		EscapeMap map[string]string `json:"escape_map"`
+	titlefi *os.File
+	config  = struct {
+		CharLimit int `json:"char_limit"`
+		EscapeMap []struct {
+			Old string `json:"old"`
+			New string `json:"new"`
+		} `json:"escape_map"`
 	}{}
 )
 
@@ -28,9 +31,6 @@ func init() {
 	if err := json.Unmarshal(bs, &config); err != nil {
 		log.Fatal("reading config file: ", err)
 	}
-
-	// create a command for refreshing i3status
-	i3statusRefresh = exec.Command("killall", "-USR1", "i3status")
 
 	// open file for writing title at '<program-name>.out'
 	fi, err := os.Create(os.Args[0] + ".out")
@@ -50,7 +50,10 @@ func main() {
 		for winRecv.Next() {
 			ev := winRecv.Event().(*i3.WindowEvent)
 			writeWindowTitle(ev.Container.WindowProperties.Title)
-			i3statusRefresh.Run()
+			// refresh i3status
+			if err := exec.Command("killall", "-USR1", "i3status").Run(); err != nil {
+				log.Println("error refreshing i3status:", err)
+			}
 			// break
 		}
 
@@ -63,17 +66,12 @@ func main() {
 }
 
 func writeWindowTitle(title string) {
-	if len(title) > config.CharLimit {
-		title = title[:config.CharLimit] + "..."
+	for _, repl := range config.EscapeMap {
+		title = strings.ReplaceAll(title, repl.Old, repl.New)
 	}
 
-	var titleEsc string
-	for _, r := range title {
-		if repl, ok := config.EscapeMap[string(r)]; ok {
-			titleEsc += repl
-		} else {
-			titleEsc += string(r)
-		}
+	if len(title) > config.CharLimit {
+		title = title[:config.CharLimit] + "..."
 	}
 
 	if err := titlefi.Truncate(0); err != nil {
@@ -83,7 +81,7 @@ func writeWindowTitle(title string) {
 		log.Println("seeking 'window-title' file:", err)
 
 	}
-	if _, err := titlefi.Write([]byte(titleEsc)); err != nil {
+	if _, err := titlefi.Write([]byte(title)); err != nil {
 		log.Println("writing 'window-title' file:", err)
 	}
 }
