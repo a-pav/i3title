@@ -1,8 +1,21 @@
 {
     "char_limit": 90,
-    "escape_map": {
-		">": "&gt;",
-		"<": "&lt;",
-        "&": "&amp;"
-    }
+    "escape_map": [
+        {
+            "old": "&",
+            "new": "&amp;"
+        },
+        {
+            "old": ">",
+            "new": "&gt;"
+        },
+        {
+            "old": "<",
+            "new": "&lt;"
+        },
+        {
+            "old": " — Firefox Developer Edition",
+            "new": ""
+        }
+    ]
 }
