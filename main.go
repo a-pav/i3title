@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"sync"
 
 	"go.i3wm.org/i3/v4"
 )
@@ -24,7 +23,7 @@ var (
 
 func init() {
 	// read config file from '<program-name>_config.json'
-	bs, err := os.ReadFile(os.Args[0] + "_config.json")
+	bs, err := os.ReadFile(os.Args[0] + ".config.json")
 	if err != nil {
 		log.Fatal("opening config file: ", err)
 	}
@@ -43,24 +42,17 @@ func init() {
 
 func main() {
 	winRecv := i3.Subscribe(i3.WindowEventType)
-	wg := sync.WaitGroup{}
+	for winRecv.Next() {
+		ev := winRecv.Event().(*i3.WindowEvent)
+		writeWindowTitle(ev.Container.WindowProperties.Title)
 
-	wg.Add(1)
-	go func() {
-		for winRecv.Next() {
-			ev := winRecv.Event().(*i3.WindowEvent)
-			writeWindowTitle(ev.Container.WindowProperties.Title)
-			// refresh i3status
-			if err := exec.Command("killall", "-USR1", "i3status").Run(); err != nil {
-				log.Println("error refreshing i3status:", err)
-			}
-			// break
+		// refresh i3status
+		if err := exec.Command("killall", "-USR1", "i3status").Run(); err != nil {
+			log.Println("error refreshing i3status:", err)
 		}
 
-		wg.Done()
-	}()
-
-	wg.Wait()
+		// break
+	}
 
 	log.Fatal("ending program:", winRecv.Close())
 }
@@ -70,8 +62,15 @@ func writeWindowTitle(title string) {
 		title = strings.ReplaceAll(title, repl.Old, repl.New)
 	}
 
-	if len(title) > config.CharLimit {
-		title = title[:config.CharLimit] + "..."
+	// convert title string to runes, because unicode characters can have length > 1
+	// when they're actually one single rune.
+	// example:
+	//	 str := "·—"
+	//	 fmt.Println(len(str)) // prints 5
+	//	 fmt.Println(len([]rune(str))) // prints 2
+	titleRunes := []rune(title)
+	if len(titleRunes) > config.CharLimit {
+		title = string(titleRunes[:config.CharLimit]) + "..."
 	}
 
 	if err := titlefi.Truncate(0); err != nil {
