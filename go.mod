@@ -1,4 +1,4 @@
-module pav.d/i3ipc-wintitle
+module pav.d/i3title
 
 go 1.19
 
