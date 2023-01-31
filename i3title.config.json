@@ -1,21 +1,22 @@
 {
-    "char_limit": 95,
-    "escape_map": [
-        {
-            "old": "&",
-            "new": "&amp;"
-        },
-        {
-            "old": ">",
-            "new": "&gt;"
-        },
-        {
-            "old": "<",
-            "new": "&lt;"
-        },
-        {
-            "old": " — Firefox Developer Edition",
-            "new": ""
-        }
+    "debug": true,
+    "max_length": 95,
+    "filters": [
+        [
+            "&",
+            "&amp;"
+        ],
+        [
+            ">",
+            "&gt;"
+        ],
+        [
+            "<",
+            "&lt;"
+        ],
+        [   // remove trailing title of firefox 
+            " — Firefox Developer Edition$| — Mozilla Firefox$",
+            ""
+        ]
     ]
 }
