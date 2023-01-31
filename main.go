@@ -5,10 +5,15 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"strings"
+	"regexp"
 
 	"go.i3wm.org/i3/v4"
 )
+
+type ReReplace struct {
+	Re   *regexp.Regexp
+	Repl string
+}
 
 var (
 	args0   string // program pathname
@@ -20,12 +25,13 @@ var (
 			Old string `json:"old"`
 			New string `json:"new"`
 		} `json:"filters"`
+
+		FiltersCompiled []ReReplace
 	}{}
 )
 
-func init() {
-	args0 = os.Args[0]
-	// read config file from '<program-name>_config.json'
+func initReadConfig() {
+	// read config file from '<program-name>.config.json'
 	bs, err := os.ReadFile(args0 + ".config.json")
 	if err != nil {
 		log.Fatal("opening config file: ", err)
@@ -34,12 +40,37 @@ func init() {
 		log.Fatal("reading config file: ", err)
 	}
 
+	filtersCompiled := []ReReplace{}
+	for _, f := range config.Filters {
+		re, err := regexp.Compile(f.Old)
+		if err != nil {
+			log.Println("error compiling regex:", err)
+			continue
+		}
+
+		filtersCompiled = append(filtersCompiled, ReReplace{
+			Re:   re,
+			Repl: f.New,
+		})
+	}
+
+	config.FiltersCompiled = filtersCompiled
+	config.Filters = nil // discard non-compiled filters
+}
+
+func initOpenTitleFile() {
 	// open file for writing title at '<program-name>.out'
 	fi, err := os.Create(args0 + ".out")
 	if err != nil {
 		log.Fatal("could not open/create window-title file:", err)
 	}
 	titlefi = fi
+}
+
+func init() {
+	args0 = os.Args[0]
+	initReadConfig()
+	initOpenTitleFile()
 }
 
 func main() {
@@ -56,9 +87,8 @@ func main() {
 }
 
 func writeTitle(title string) {
-
-	for _, repl := range config.Filters {
-		title = strings.ReplaceAll(title, repl.Old, repl.New)
+	for _, filter := range config.FiltersCompiled {
+		title = filter.Re.ReplaceAllString(title, filter.Repl)
 	}
 
 	// convert title string to runes, because unicode characters can have length > 1
