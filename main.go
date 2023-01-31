@@ -36,6 +36,10 @@ func initReadConfig() {
 	if err != nil {
 		log.Fatal("opening config file: ", err)
 	}
+
+	// strip comments
+	bs = regexp.MustCompile(`//.*`).ReplaceAll(bs, nil)
+
 	if err := json.Unmarshal(bs, &config); err != nil {
 		log.Fatal("reading config file: ", err)
 	}
