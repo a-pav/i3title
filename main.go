@@ -11,19 +11,22 @@ import (
 )
 
 var (
+	args0   string // program pathname
 	titlefi *os.File
 	config  = struct {
-		CharLimit int `json:"char_limit"`
-		EscapeMap []struct {
+		LogTitle  bool `json:"log_title"`
+		CharLimit int  `json:"char_limit"`
+		Filters   []struct {
 			Old string `json:"old"`
 			New string `json:"new"`
-		} `json:"escape_map"`
+		} `json:"filters"`
 	}{}
 )
 
 func init() {
+	args0 = os.Args[0]
 	// read config file from '<program-name>_config.json'
-	bs, err := os.ReadFile(os.Args[0] + ".config.json")
+	bs, err := os.ReadFile(args0 + ".config.json")
 	if err != nil {
 		log.Fatal("opening config file: ", err)
 	}
@@ -32,24 +35,19 @@ func init() {
 	}
 
 	// open file for writing title at '<program-name>.out'
-	fi, err := os.Create(os.Args[0] + ".out")
+	fi, err := os.Create(args0 + ".out")
 	if err != nil {
 		log.Fatal("could not open/create window-title file:", err)
 	}
 	titlefi = fi
-
 }
 
 func main() {
 	winRecv := i3.Subscribe(i3.WindowEventType)
 	for winRecv.Next() {
 		ev := winRecv.Event().(*i3.WindowEvent)
-		writeWindowTitle(ev.Container.WindowProperties.Title)
-
-		// refresh i3status
-		if err := exec.Command("killall", "-USR1", "i3status").Run(); err != nil {
-			log.Println("error refreshing i3status:", err)
-		}
+		writeTitle(ev.Container.WindowProperties.Title)
+		i3StatusRefresh()
 
 		// break
 	}
@@ -57,8 +55,9 @@ func main() {
 	log.Fatal("ending program:", winRecv.Close())
 }
 
-func writeWindowTitle(title string) {
-	for _, repl := range config.EscapeMap {
+func writeTitle(title string) {
+
+	for _, repl := range config.Filters {
 		title = strings.ReplaceAll(title, repl.Old, repl.New)
 	}
 
@@ -82,5 +81,16 @@ func writeWindowTitle(title string) {
 	}
 	if _, err := titlefi.Write([]byte(title)); err != nil {
 		log.Println("writing 'window-title' file:", err)
+	}
+
+	switch config.LogTitle {
+	case true:
+		go log.Printf("%q", title)
+	}
+}
+
+func i3StatusRefresh() {
+	if err := exec.Command("killall", "-USR1", "i3status").Run(); err != nil {
+		log.Println("error refreshing i3status:", err)
 	}
 }
