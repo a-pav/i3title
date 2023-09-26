@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -11,9 +10,11 @@ import (
 
 func init() {
 	defer discardConfig()
+	// log to stderr since stdout is strictly for valid json/array lines.
+	log.SetOutput(os.Stderr)
 
-	initConfig(os.Args[0])
 	initScanner()
+	initConfig(os.Args[0])
 
 	TITLE = Config.TitleModule.WelcomeMsg
 }
@@ -21,12 +22,9 @@ func init() {
 func initScanner() {
 	Scanner = bufio.NewScanner(os.Stdin)
 
-	Scanner.Scan() // skip 1st line: {"version":1}
-	fmt.Fprintf(os.Stdout, "%s\n", Scanner.Text())
-	Scanner.Scan() // skip 2nd line: [
-	fmt.Fprintf(os.Stdout, "%s\n", Scanner.Text())
-	Scanner.Scan() // skip 3rd line: the only line without ',' as delimiter
-	fmt.Fprintf(os.Stdout, "%s\n", Scanner.Text())
+	if err := Scanner.Err(); err != nil {
+		log.Fatal("scanner failed to init: ", err)
+	}
 }
 
 func initConfig(args0 string) {
@@ -70,6 +68,6 @@ func readConfigFile(args0 string) {
 
 // discardConfig discards parts of the config that are no longer needed.
 func discardConfig() {
-	Config.Filters = nil // discard
+	Config.Filters = nil // discard uncompiled filters.
 	Config.TitleModule.WelcomeMsg = ""
 }
