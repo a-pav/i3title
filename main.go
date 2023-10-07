@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -57,8 +58,8 @@ func readLine() {
 	// like a `{"version":1}`, a `[` and possible errors it ran into during startup.
 	// This loop is to skip them all.
 	for scanner.Scan() {
-		LINE = scanner.Text()
-		if strings.HasPrefix(LINE, ",[{\"") { // this is our cue that i3status has started printing valid array lines.
+		LINE = scanner.Bytes()
+		if bytes.HasPrefix(LINE, []byte(",[{\"")) { // this is our cue that i3status has started printing valid array lines.
 			printline()
 			break // break to get rid of this check.
 		}
@@ -67,7 +68,7 @@ func readLine() {
 	}
 
 	for scanner.Scan() {
-		LINE = scanner.Text()
+		LINE = scanner.Bytes()
 		printline()
 	}
 
@@ -103,7 +104,8 @@ func trimTitle(title string) string {
 // printline inserts `TITLE` into `LINE` (the coming stdin) then prints the result to stdout.
 func printline() {
 	sm := []map[string]any{}
-	if err := json.Unmarshal([]byte(strings.TrimPrefix(LINE, ",")), &sm); err != nil {
+	// bytes.TrimPrefix(LINE, []byte(","))
+	if err := json.Unmarshal(LINE[1:], &sm); err != nil {
 		log.Fatal("failure parsing line:", err)
 	}
 
@@ -114,7 +116,9 @@ func printline() {
 		log.Fatal("failure encoding line:", err)
 	}
 
-	if _, err := fmt.Fprintf(os.Stdout, ",%s\n", string(j)); err != nil {
-		log.Fatal("failure writing stdout:", err)
-	}
+	// if _, err := fmt.Fprintf(os.Stdout, ",%s\n", j); err != nil {
+	// 	log.Fatal("failure writing stdout:", err)
+	// }
+
+	os.Stdout.Write(append([]byte(","), append(j, byte('\n'))...))
 }

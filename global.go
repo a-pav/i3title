@@ -13,7 +13,7 @@ var (
 	// Globally shared variables.
 	// For the sake of this program, these should work fine with no mutex mechanism in place.
 	TITLE = ""
-	LINE  = ""
+	LINE  []byte
 
 	Config = struct {
 		Debug       bool `json:"debug"`
