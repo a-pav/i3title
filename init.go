@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -13,18 +13,9 @@ func init() {
 	// log to stderr since stdout is strictly for valid json/array lines.
 	log.SetOutput(os.Stderr)
 
-	initScanner()
 	initConfig(os.Args[0])
 
-	TITLE = Config.TitleModule.WelcomeMsg
-}
-
-func initScanner() {
-	Scanner = bufio.NewScanner(os.Stdin)
-
-	if err := Scanner.Err(); err != nil {
-		log.Fatal("scanner failed to init: ", err)
-	}
+	TITLE = fmt.Sprintf(Config.TitleModule.Format, Config.TitleModule.WelcomeMsg)
 }
 
 func initConfig(args0 string) {

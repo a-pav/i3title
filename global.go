@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"regexp"
 )
 
@@ -11,8 +10,6 @@ type MatchReplace struct {
 }
 
 var (
-	Scanner *bufio.Scanner
-
 	// Globally shared variables.
 	// For the sake of this program, these should work fine with no mutex mechanism in place.
 	TITLE = ""
