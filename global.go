@@ -12,11 +12,12 @@ type MatchReplace struct {
 var (
 	// Globally shared variables.
 	// For the sake of this program, these should work fine with no mutex mechanism in place.
-	TITLE = ""
+	TITLE string
 	LINE  []byte
 
 	Config = struct {
-		Debug       bool `json:"debug"`
+		Debug       bool   `json:"debug"`
+		BufSize     uint16 `json:"buffer_size"` // max: 65535, 64KB
 		TitleModule struct {
 			Index      int    `json:"index"`
 			Format     string `json:"format"`

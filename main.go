@@ -48,10 +48,23 @@ func readTitle() {
 }
 
 func readLine() {
+	// DEBUG
+	// cmd := exec.Command("i3status")
+	// stdout, err := cmd.StdoutPipe()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// if err := cmd.Start(); err != nil {
+	// 	log.Fatal(err)
+	// }
+	// defer cmd.Process.Release()
+	// scanner := bufio.NewScanner(stdout)
+
 	scanner := bufio.NewScanner(os.Stdin)
 	if err := scanner.Err(); err != nil {
 		log.Fatal("scanner failed to init: ", err)
 	}
+	scanner.Buffer(make([]byte, 0, Config.BufSize), 0)
 
 	// Redirect stdin to stdout until a valid i3bar array line is reached.
 	// i3status' first few lines are NOT a valid array line. They usually look
@@ -116,9 +129,7 @@ func printline() {
 		log.Fatal("failure encoding line:", err)
 	}
 
-	// if _, err := fmt.Fprintf(os.Stdout, ",%s\n", j); err != nil {
-	// 	log.Fatal("failure writing stdout:", err)
-	// }
-
-	os.Stdout.Write(append([]byte(","), append(j, byte('\n'))...))
+	if _, err := fmt.Fprintf(os.Stdout, ",%s\n", j); err != nil {
+		log.Fatal("failure writing stdout:", err)
+	}
 }
