@@ -1,5 +1,6 @@
 {
     "debug": true,
+    "buffer_size": 1500,
     "title_module": {
         "index": 0,
         "format": "<span foreground='#00cbe6' font='11'>%s</span>",
