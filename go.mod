@@ -1,6 +1,6 @@
 module pav.d/i3title
 
-go 1.19
+go 1.21.2
 
 require go.i3wm.org/i3/v4 v4.18.0
 
