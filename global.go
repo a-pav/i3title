@@ -14,12 +14,13 @@ var (
 	// For the sake of this program, these should work fine with no mutex mechanism in place.
 	TITLE string
 	LINE  []byte
+	// LINE  string
 
 	Config = struct {
 		Debug       bool   `json:"debug"`
 		BufSize     uint16 `json:"buffer_size"` // max: 65535, 64KB
 		TitleModule struct {
-			Index      int    `json:"index"`
+			PH         string `json:"placeholder"`
 			Format     string `json:"format"`
 			MaxLen     int    `json:"max_length"`
 			WelcomeMsg string `json:"welcome_msg"` // It is shown until the first window/title event is triggered.
@@ -27,6 +28,7 @@ var (
 
 		Filters [][]string `json:"filters"`
 
+		TitlePHRE       *regexp.Regexp
 		FiltersCompiled []MatchReplace
 	}{}
 )

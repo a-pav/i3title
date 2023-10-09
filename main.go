@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -64,6 +63,7 @@ func readLine() {
 	if err := scanner.Err(); err != nil {
 		log.Fatal("scanner failed to init: ", err)
 	}
+	// Set maximum buffer size.
 	scanner.Buffer(make([]byte, 0, Config.BufSize), 0)
 
 	// Redirect stdin to stdout until a valid i3bar array line is reached.
@@ -106,30 +106,16 @@ func trimTitle(title string) string {
 		title = strings.TrimSpace(string(titleRunes[:Config.TitleModule.MaxLen])) + "…"
 	}
 
-	switch Config.Debug {
-	case true:
-		go log.Printf("%q", title)
-	}
-
 	return fmt.Sprintf(Config.TitleModule.Format, title)
 }
 
 // printline inserts `TITLE` into `LINE` (the coming stdin) then prints the result to stdout.
 func printline() {
-	sm := []map[string]any{}
-	// bytes.TrimPrefix(LINE, []byte(","))
-	if err := json.Unmarshal(LINE[1:], &sm); err != nil {
-		log.Fatal("failure parsing line:", err)
-	}
-
-	sm[Config.TitleModule.Index]["full_text"] = TITLE // insert
-
-	j, err := json.Marshal(sm)
-	if err != nil {
-		log.Fatal("failure encoding line:", err)
-	}
-
-	if _, err := fmt.Fprintf(os.Stdout, ",%s\n", j); err != nil {
+	if _, err := fmt.Fprintf(
+		os.Stdout,
+		"%s",
+		Config.TitlePHRE.ReplaceAll(LINE, []byte(TITLE)),
+	); err != nil {
 		log.Fatal("failure writing stdout:", err)
 	}
 }
