@@ -16,7 +16,7 @@ func init() {
 
 	initConfig(getwd())
 
-	TITLE = fmt.Sprintf(Config.TitleModule.Format, Config.TitleModule.WelcomeMsg)
+	TITLE = fmt.Sprintf(Config.TitleMod.Format, Config.TitleMod.WelcomeMsg)
 }
 
 // getwd returns the application's working directory.
@@ -25,6 +25,8 @@ func getwd() string { return filepath.Dir(os.Args[0]) }
 
 func initConfig(cwd string) {
 	readConfigFile(cwd)
+
+	Config.TitlePH = []byte(Config.TitleMod.PH)
 
 	filtersCompiled := []MatchReplace{}
 	for _, mr := range Config.Filters {
@@ -65,5 +67,5 @@ func readConfigFile(cwd string) {
 // discardConfig discards parts of the config that are no longer needed.
 func discardConfig() {
 	Config.Filters = nil // discard uncompiled filters.
-	Config.TitleModule.WelcomeMsg = ""
+	Config.TitleMod.WelcomeMsg = ""
 }

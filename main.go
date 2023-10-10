@@ -102,19 +102,17 @@ func trimTitle(title string) string {
 	//	 str := "·—"
 	//	 fmt.Println(len(str)) // prints 5
 	//	 fmt.Println(len([]rune(str))) // prints 2
-	if titleRunes := []rune(title); len(titleRunes) > Config.TitleModule.MaxLen {
-		title = strings.TrimSpace(string(titleRunes[:Config.TitleModule.MaxLen])) + "…"
+	if titleRunes := []rune(title); len(titleRunes) > Config.TitleMod.MaxLen {
+		title = strings.TrimSpace(string(titleRunes[:Config.TitleMod.MaxLen])) + "…"
 	}
 
-	return fmt.Sprintf(Config.TitleModule.Format, title)
+	return fmt.Sprintf(Config.TitleMod.Format, title)
 }
 
 // printline inserts `TITLE` into `LINE` (the coming stdin) then prints the result to stdout.
 func printline() {
-	if _, err := fmt.Fprintf(
-		os.Stdout,
-		"%s\n",
-		bytes.Replace(LINE, []byte(Config.TitleModule.PH), []byte(TITLE), 1),
+	if _, err := fmt.Fprintf(os.Stdout, "%s\n",
+		bytes.Replace(LINE, Config.TitlePH, []byte(TITLE), 1),
 	); err != nil {
 		log.Fatal("failure writing stdout:", err)
 	}
