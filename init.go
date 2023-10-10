@@ -26,9 +26,6 @@ func getwd() string { return filepath.Dir(os.Args[0]) }
 func initConfig(cwd string) {
 	readConfigFile(cwd)
 
-	// Compile placeholder text.
-	Config.TitlePHRE = regexp.MustCompile(Config.TitleModule.PH)
-
 	filtersCompiled := []MatchReplace{}
 	for _, mr := range Config.Filters {
 		if l := len(mr); l != 2 {

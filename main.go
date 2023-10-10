@@ -72,7 +72,7 @@ func readLine() {
 	// This loop is to skip them all.
 	for scanner.Scan() {
 		LINE = scanner.Bytes()
-		if bytes.HasPrefix(LINE, []byte(",[{\"")) { // this is our cue that i3status has started printing valid array lines.
+		if bytes.HasPrefix(LINE, []byte("[{\"")) { // this is our cue that i3status has started printing valid array lines.
 			printline()
 			break // break to get rid of this check.
 		}
@@ -113,8 +113,8 @@ func trimTitle(title string) string {
 func printline() {
 	if _, err := fmt.Fprintf(
 		os.Stdout,
-		"%s",
-		Config.TitlePHRE.ReplaceAll(LINE, []byte(TITLE)),
+		"%s\n",
+		bytes.Replace(LINE, []byte(Config.TitleModule.PH), []byte(TITLE), 1),
 	); err != nil {
 		log.Fatal("failure writing stdout:", err)
 	}

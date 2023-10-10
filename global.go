@@ -14,7 +14,6 @@ var (
 	// For the sake of this program, these should work fine with no mutex mechanism in place.
 	TITLE string
 	LINE  []byte
-	// LINE  string
 
 	Config = struct {
 		Debug       bool   `json:"debug"`
