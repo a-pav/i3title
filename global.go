@@ -26,7 +26,6 @@ var (
 		} `json:"title_module"`
 		Filters [][]string `json:"filters"`
 
-		TitlePH         []byte
 		FiltersCompiled []MatchReplace
 	}{}
 )
