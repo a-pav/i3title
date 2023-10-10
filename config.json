@@ -20,6 +20,10 @@
             "<",
             "&lt;"
         ],
+        [
+            "\"",
+            "&quot;"
+        ],
         [   // remove trailing title of firefox 
             " — Firefox Developer Edition$| — Mozilla Firefox$",
             ""
