@@ -72,13 +72,14 @@ func readLine() {
 	// This loop is to skip them all.
 	for scanner.Scan() {
 		LINE = scanner.Bytes()
-		if bytes.HasPrefix(LINE, []byte("[{\"")) { // this is our cue that i3status has started printing valid array lines.
-			printline()
-			break // break to get rid of this check.
+		if bytes.HasPrefix(LINE, []byte("[{\"")) {
+			// this is our cue that i3status has started printing valid array lines.
+			break
 		}
 
 		fmt.Fprintf(os.Stdout, "%s\n", LINE)
 	}
+	printline()
 
 	for scanner.Scan() {
 		LINE = scanner.Bytes()

@@ -3,7 +3,7 @@
     "buffer_size": 1500,
     "title_module": {
         "placeholder": "ttlph",
-        "format": "<span foreground='#00cbe6' font='11'>%s</span>",
+        "format": "<span foreground='#7df0ff' font='11'>%s</span>",
         "max_length": 95,
         "welcome_msg": "Welcome!"
     },
