@@ -70,8 +70,7 @@ func readLine() {
 		log.Fatal("scanner failed to init: ", err)
 	}
 	// Set maximum buffer size.
-	// LINE = make([]byte, 0, Config.BufSize)
-	// scanner.Buffer(LINE, 0)
+	scanner.Buffer(make([]byte, 0, Config.BufSize), 0)
 
 	for scanner.Scan() {
 		LINE = scanner.Bytes()
