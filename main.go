@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 	"sync"
 
 	"go.i3wm.org/i3/v4"
@@ -33,14 +32,21 @@ func main() {
 func readTitle() {
 	winRecv := i3.Subscribe(i3.WindowEventType)
 
+	// Ideally, we want to update statusbar upon each change-of-title event. But,
+	// i3 catches too many of those events in less than a second while system is
+	// starting. It's better to `discard` a few of those events WITHOUT writing
+	// to stdout (updating statusbar) so the chance of encoutering errors is mitigated.
+	for i := 1; i <= Config.TitleMod.Discards; i++ {
+		winRecv.Next()
+		TITLE = fmt.Sprintf(Config.TitleMod.Format, fmt.Sprintf("Discarded events: %d", i))
+	}
+
 	for winRecv.Next() {
 		ev := winRecv.Event().(*i3.WindowEvent)
 		TITLE = trimTitle(ev.Container.WindowProperties.Title)
 
 		printline()
 		// There's no need to signal i3status to refresh. It picks on the stdout by itself.
-
-		// break
 	}
 
 	log.Fatal("ending program:", winRecv.Close())
@@ -64,22 +70,8 @@ func readLine() {
 		log.Fatal("scanner failed to init: ", err)
 	}
 	// Set maximum buffer size.
-	scanner.Buffer(make([]byte, 0, Config.BufSize), 0)
-
-	// Redirect stdin to stdout until a valid i3bar array line is reached.
-	// i3status' first few lines are NOT a valid array line. They usually look
-	// like a `{"version":1}`, a `[` and possible errors it ran into during startup.
-	// This loop is to skip them all.
-	for scanner.Scan() {
-		LINE = scanner.Bytes()
-		if bytes.HasPrefix(LINE, []byte("[{\"")) {
-			// this is our cue that i3status has started printing valid array lines.
-			break
-		}
-
-		fmt.Fprintf(os.Stdout, "%s\n", LINE)
-	}
-	printline()
+	// LINE = make([]byte, 0, Config.BufSize)
+	// scanner.Buffer(LINE, 0)
 
 	for scanner.Scan() {
 		LINE = scanner.Bytes()
@@ -106,9 +98,7 @@ func trimTitle(title string) string {
 	//
 	// `len([]rune(s))` pattern is optimized by compiler.
 	if len([]rune(title)) > Config.TitleMod.MaxLen {
-		title = strings.TrimSpace(
-			string(append([]rune(title)[:Config.TitleMod.MaxLen], '…')),
-		)
+		title = string(append([]rune(title)[:Config.TitleMod.MaxLen], '…'))
 	}
 
 	return fmt.Sprintf(Config.TitleMod.Format, title)
@@ -116,9 +106,7 @@ func trimTitle(title string) string {
 
 // printline inserts `TITLE` into `LINE` (the coming stdin) then prints the result to stdout.
 func printline() {
-	if _, err := fmt.Fprintf(os.Stdout, "%s\n",
+	fmt.Fprintf(os.Stdout, "%s\n",
 		bytes.Replace(LINE, []byte(Config.TitleMod.PH), []byte(TITLE), 1),
-	); err != nil {
-		log.Fatal("failure writing stdout:", err)
-	}
+	)
 }

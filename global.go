@@ -22,6 +22,7 @@ var (
 			PH         string `json:"placeholder"`
 			Format     string `json:"format"`
 			MaxLen     int    `json:"max_length"`
+			Discards   int    `json:"discards"`
 			WelcomeMsg string `json:"welcome_msg"` // It is shown until the first window/title event is triggered.
 		} `json:"title_module"`
 		Filters [][]string `json:"filters"`
