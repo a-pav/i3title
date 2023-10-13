@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"sync"
+	"time"
 
 	"go.i3wm.org/i3/v4"
 )
@@ -30,16 +31,13 @@ func main() {
 }
 
 func readTitle() {
-	winRecv := i3.Subscribe(i3.WindowEventType)
-
 	// Ideally, we want to update statusbar upon each change-of-title event. But,
-	// i3 catches too many of those events in less than a second while system is
-	// starting. It's better to `discard` a few of those events WITHOUT writing
-	// to stdout (updating statusbar) so the chance of encoutering errors is mitigated.
-	for i := 1; i <= Config.TitleMod.Discards; i++ {
-		winRecv.Next()
-		TITLE = fmt.Sprintf(Config.TitleMod.Format, fmt.Sprintf("Discarded events: %d", i))
-	}
+	// i3 creates too many of those events in less than a second while system is
+	// initially starting. To avoid errors, it's better to `discard` a few of those
+	// initial events WITHOUT writing to stdout (updating statusbar).
+	time.Sleep(time.Duration(Config.TitleMod.Delay) * time.Second)
+
+	winRecv := i3.Subscribe(i3.WindowEventType)
 
 	for winRecv.Next() {
 		ev := winRecv.Event().(*i3.WindowEvent)

@@ -5,7 +5,7 @@
         "placeholder": "ttlph",
         "format": "<span foreground='#7df0ff' font='11'>%s</span>",
         "max_length": 95,
-        "discards": 10,
+        "delay": 10,
         "welcome_msg": "Welcome!"
     },
     "filters": [
