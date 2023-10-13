@@ -11,8 +11,8 @@ import (
 
 func init() {
 	defer discardConfig()
-	// log to stderr since stdout is strictly for valid json/array lines.
-	log.SetOutput(os.Stderr)
+	log.SetPrefix("i3title: ")
+	log.SetFlags(log.Lmsgprefix)
 
 	initConfig(getwd())
 
