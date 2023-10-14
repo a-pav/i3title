@@ -26,25 +26,25 @@ func getwd() string { return filepath.Dir(os.Args[0]) }
 func initConfig(cwd string) {
 	readConfigFile(cwd)
 
-	filtersCompiled := []MatchReplace{}
-	for _, mr := range Config.Filters {
-		if l := len(mr); l != 2 {
-			continue
+	if len(Config.Filters)%2 == 1 {
+		log.Println("Config.Filters: odd argument count. filter list ignored.")
+	} else {
+		filtersCompiled := []MatchReplace{}
+		for i := 0; i < len(Config.Filters); i += 2 {
+			re, err := regexp.Compile(Config.Filters[i])
+			if err != nil {
+				log.Println("error compiling regex:", err)
+				continue
+			}
+
+			filtersCompiled = append(filtersCompiled, MatchReplace{
+				Match: re,
+				Repl:  Config.Filters[i+1],
+			})
 		}
 
-		re, err := regexp.Compile(mr[0])
-		if err != nil {
-			log.Println("error compiling regex:", err)
-			continue
-		}
-
-		filtersCompiled = append(filtersCompiled, MatchReplace{
-			Match: re,
-			Repl:  mr[1],
-		})
+		Config.FiltersCompiled = filtersCompiled
 	}
-
-	Config.FiltersCompiled = filtersCompiled
 }
 
 func readConfigFile(cwd string) {

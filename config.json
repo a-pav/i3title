@@ -9,25 +9,26 @@
         "welcome_msg": "Welcome!"
     },
     "filters": [
-        [
-            "&",
-            "&amp;"
-        ],
-        [
-            ">",
-            "&gt;"
-        ],
-        [
-            "<",
-            "&lt;"
-        ],
-        [
-            "\"",
-            "&quot;"
-        ],
-        [   // remove trailing title of firefox 
-            " — Firefox Developer Edition$| — Mozilla Firefox$",
-            ""
-        ]
+        // To test, run document.title = `  ~!@#$%^&*()_+-=[]{}|\;:'"<>?,./\`` in browser console.
+        // https://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references
+        // https://en.wikipedia.org/wiki/Numeric_character_reference
+        "&",
+        "&amp;",
+
+        ">",
+        "&gt;",
+
+        "<",
+        "&lt;",
+
+        "\"",
+        "&#34;", // "&#34;" is shorter than "&quot;".
+
+        "\\\\",
+        "&#92;", // "&#92;" is shorter than "&Backslash;", or anything else.
+
+        // Remove trailing title of firefox.
+        " — Firefox Developer Edition$| — Mozilla Firefox$",
+        ""
     ]
 }

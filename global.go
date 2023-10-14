@@ -25,7 +25,7 @@ var (
 			Delay      uint8  `json:"delay"`
 			WelcomeMsg string `json:"welcome_msg"` // It is shown until the first window/title event is triggered.
 		} `json:"title_module"`
-		Filters [][]string `json:"filters"`
+		Filters []string `json:"filters"`
 
 		FiltersCompiled []MatchReplace
 	}{}
