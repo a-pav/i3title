@@ -82,6 +82,9 @@ func readLine() {
 
 // trimTitle applies the defined filters, maxlen, format, etc. to title.
 func trimTitle(title string) string {
+	// n := time.Now()
+	// defer q.Q(time.Since(n)) // DEBUG
+
 	for _, filter := range Config.FiltersCompiled {
 		title = filter.Match.ReplaceAllString(title, filter.Repl)
 	}
@@ -98,7 +101,11 @@ func trimTitle(title string) string {
 		title = string(append([]rune(title)[:Config.TitleMod.MaxLen], '…'))
 	}
 
-	return fmt.Sprintf(Config.TitleMod.Format, title)
+	return titlef(title)
+}
+
+func titlef(t string) string {
+	return fmt.Sprintf(Config.TitleMod.Format, t)
 }
 
 // printline inserts `TITLE` into `LINE` (the coming stdin) then prints the result to stdout.

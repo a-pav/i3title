@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -16,7 +15,7 @@ func init() {
 
 	initConfig(getwd())
 
-	TITLE = fmt.Sprintf(Config.TitleMod.Format, Config.TitleMod.WelcomeMsg)
+	TITLE = titlef(Config.TitleMod.WelcomeMsg)
 }
 
 // getwd returns the application's working directory.
