@@ -1,4 +1,6 @@
-package testing
+// Run these benchmarks by `GO111MODULE=off go test -bench=.` inside test directory.
+
+package i3title_test
 
 import (
 	"bytes"
