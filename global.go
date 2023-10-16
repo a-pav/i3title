@@ -37,7 +37,7 @@ func getwd() string { return filepath.Dir(os.Args[0]) }
 // titlef formats title as defined in config.
 func titlef(t string) string { return fmt.Sprintf(Config.TitleMod.Format, t) }
 
-// nonspaceIndexRight returns the index of first nonspace character in rs.
+// nonspaceIndexRight returns the index of first non-space character in rs.
 func nonspaceIndexRight(rs []rune) int {
 	for i := len(rs) - 1; i > 0; i-- {
 		if rs[i] != ' ' {
