@@ -41,7 +41,7 @@ func readTitle() {
 
 	for winRecv.Next() {
 		ev := winRecv.Event().(*i3.WindowEvent)
-		TITLE = trimTitle(ev.Container.WindowProperties.Title)
+		TITLE = makeTitle(ev.Container.WindowProperties.Title)
 
 		printline()
 		// There's no need to signal i3status to refresh. It picks on the stdout by itself.
@@ -80,15 +80,9 @@ func readLine() {
 	}
 }
 
-// trimTitle applies the defined filters, maxlen, format, etc. to title.
-func trimTitle(title string) string {
-	// n := time.Now()
-	// defer q.Q(time.Since(n)) // DEBUG
-
-	for _, filter := range Config.FiltersCompiled {
-		title = filter.Match.ReplaceAllString(title, filter.Repl)
-	}
-
+// makeTitle applies the defined filters, maxlen, format, etc. to title.
+func makeTitle(title string) string {
+	title = Config.Replacer.Replace(title)
 	// Convert title string to runes, because unicode characters can have length > 1
 	// when they're actually one single rune.
 	// example:
@@ -98,14 +92,14 @@ func trimTitle(title string) string {
 	//
 	// `len([]rune(s))` pattern is optimized by compiler.
 	if len([]rune(title)) > Config.TitleMod.MaxLen {
-		title = string(append([]rune(title)[:Config.TitleMod.MaxLen], '…'))
+		rs := []rune(title)                // alloc.
+		rs = rs[:Config.TitleMod.MaxLen]   // shrink (no alloc.)
+		rs = rs[:nonspaceIndexRight(rs)+1] // drop possible trailing spaces (no alloc.)
+		rs = append(rs, '…')               // append shrinkage indicator (no alloc.)
+		title = string(rs)                 // alloc.
 	}
 
 	return titlef(title)
-}
-
-func titlef(t string) string {
-	return fmt.Sprintf(Config.TitleMod.Format, t)
 }
 
 // printline inserts `TITLE` into `LINE` (the coming stdin) then prints the result to stdout.

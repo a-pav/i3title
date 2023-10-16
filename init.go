@@ -2,10 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"regexp"
+	"strings"
 )
 
 func init() {
@@ -15,34 +16,16 @@ func init() {
 
 	initConfig(getwd())
 
-	TITLE = titlef(Config.TitleMod.WelcomeMsg)
+	TITLE = titlef(fmt.Sprintf("%s | Delay: %d", Config.TitleMod.WelcomeMsg, Config.TitleMod.Delay))
 }
-
-// getwd returns the application's working directory.
-// os.Args[0] is the surest way to get the actual CWD. i3 seems to run everything in /home/$USER.
-func getwd() string { return filepath.Dir(os.Args[0]) }
 
 func initConfig(cwd string) {
 	readConfigFile(cwd)
 
-	if len(Config.Filters)%2 == 1 {
+	if len(Config.OldNew)%2 == 1 {
 		log.Println("Config.Filters: odd argument count. filter list ignored.")
 	} else {
-		filtersCompiled := []MatchReplace{}
-		for i := 0; i < len(Config.Filters); i += 2 {
-			re, err := regexp.Compile(Config.Filters[i])
-			if err != nil {
-				log.Println("error compiling regex:", err)
-				continue
-			}
-
-			filtersCompiled = append(filtersCompiled, MatchReplace{
-				Match: re,
-				Repl:  Config.Filters[i+1],
-			})
-		}
-
-		Config.FiltersCompiled = filtersCompiled
+		Config.Replacer = strings.NewReplacer(Config.OldNew...)
 	}
 }
 
@@ -63,6 +46,6 @@ func readConfigFile(cwd string) {
 
 // discardConfig discards parts of the config that are no longer needed.
 func discardConfig() {
-	Config.Filters = nil // discard uncompiled filters.
+	Config.OldNew = nil // release reference
 	Config.TitleMod.WelcomeMsg = ""
 }

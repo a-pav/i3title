@@ -8,7 +8,7 @@
         "delay": 10,
         "welcome_msg": "Welcome!"
     },
-    "filters": [
+    "old_new": [
         // To test, run document.title = `  ~!@#$%^&*()_+-=[]{}|\;:'"<>?,./\`` in browser console.
         // https://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references
         // https://en.wikipedia.org/wiki/Numeric_character_reference
@@ -24,11 +24,13 @@
         "\"",
         "&#34;", // "&#34;" is shorter than "&quot;".
 
-        "\\\\",
+        "\\",
         "&#92;", // "&#92;" is shorter than "&Backslash;", or anything else.
 
         // Remove trailing title of firefox.
-        " — Firefox Developer Edition$| — Mozilla Firefox$",
+        " — Firefox Developer Edition",
+        "",
+        " — Mozilla Firefox",
         ""
     ]
 }
