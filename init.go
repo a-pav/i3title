@@ -16,7 +16,7 @@ func init() {
 
 	initConfig(getwd())
 
-	TITLE = titlef(fmt.Sprintf("%s | Delay: %d", Config.TitleMod.WelcomeMsg, Config.TitleMod.Delay))
+	TITLE = titlef(fmt.Sprintf("Delay: %ds", Config.TitleMod.Delay))
 }
 
 func initConfig(cwd string) {
@@ -30,13 +30,13 @@ func initConfig(cwd string) {
 }
 
 func readConfigFile(cwd string) {
-	// read config file from '<program-name>.config.json'
+	// read config file from current working directory.
 	bs, err := os.ReadFile(cwd + "/config.json")
 	if err != nil {
 		log.Fatal("opening config file: ", err)
 	}
 
-	// strip comments
+	// strip comments.
 	bs = regexp.MustCompile(`//.*`).ReplaceAll(bs, nil)
 
 	if err := json.Unmarshal(bs, &Config); err != nil {
@@ -47,5 +47,4 @@ func readConfigFile(cwd string) {
 // discardConfig discards parts of the config that are no longer needed.
 func discardConfig() {
 	Config.OldNew = nil // release reference
-	Config.TitleMod.WelcomeMsg = ""
 }

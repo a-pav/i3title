@@ -17,11 +17,10 @@ var (
 		Debug    bool   `json:"debug"`
 		BufSize  uint16 `json:"buffer_size"` // max: 65535, 64KB
 		TitleMod struct {
-			PH         string `json:"placeholder"`
-			Format     string `json:"format"`
-			MaxLen     int    `json:"max_length"`
-			Delay      uint8  `json:"delay"`
-			WelcomeMsg string `json:"welcome_msg"` // It is shown until the first window/title event is triggered.
+			PH     string `json:"placeholder"`
+			Format string `json:"format"`
+			MaxLen int    `json:"max_length"`
+			Delay  uint8  `json:"delay"`
 		} `json:"title_module"`
 		OldNew []string `json:"old_new"`
 
@@ -37,7 +36,7 @@ func getwd() string { return filepath.Dir(os.Args[0]) }
 // titlef formats title as defined in config.
 func titlef(t string) string { return fmt.Sprintf(Config.TitleMod.Format, t) }
 
-// nonspaceIndexRight returns the index of first non-space character in rs.
+// nonspaceIndexRight returns the index of first non-space character in rs from its end.
 func nonspaceIndexRight(rs []rune) int {
 	for i := len(rs) - 1; i > 0; i-- {
 		if rs[i] != ' ' {
