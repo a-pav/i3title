@@ -13,7 +13,7 @@ var (
 	TITLE string
 	LINE  []byte
 
-	Config = struct {
+	cn = struct { // config struct
 		Debug   bool   `json:"debug"`
 		BufSize uint16 `json:"buffer_size"` // max: 65535, 64KB
 		TiMod   struct {
@@ -36,7 +36,7 @@ var (
 func getwd() string { return filepath.Dir(os.Args[0]) }
 
 // titlef formats title as defined in config.
-func titlef(t string) string { return fmt.Sprintf(Config.TiMod.Format, t) }
+func titlef(t string) string { return fmt.Sprintf(cn.TiMod.Format, t) }
 
 // lastSafeIndex checks rs[len(rs)-width : len(rs)] for a half-formed escape
 // sequence towards the end and returns an index at its beginning, making it easy
