@@ -16,7 +16,7 @@ func init() {
 
 	initConfig(getwd())
 
-	TITLE = titlef(fmt.Sprintf("Delay: %ds", Config.TitleMod.Delay))
+	TITLE = titlef(fmt.Sprintf("Delay: %ds", Config.TiMod.Delay))
 }
 
 func initConfig(cwd string) {
@@ -25,7 +25,16 @@ func initConfig(cwd string) {
 	if len(Config.OldNew)%2 == 1 {
 		log.Println("Config.Filters: odd argument count. filter list ignored.")
 	} else {
+		// Initialize strings.Replacer.
 		Config.Replacer = strings.NewReplacer(Config.OldNew...)
+		// Determine the biggest escape sequence width.
+		w, oldnew := 0, Config.OldNew
+		for i := 0; i < len(oldnew); i += 2 {
+			if l := len(oldnew[i+1]); l > 0 && oldnew[i+1][0] == '&' {
+				w = max(w, l)
+			}
+		}
+		Config.TiMod.MaxEscLen = w
 	}
 }
 

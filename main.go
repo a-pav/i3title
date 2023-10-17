@@ -35,7 +35,7 @@ func readTitle() {
 	// i3 creates too many of those events in less than a second while system is
 	// initially starting. To avoid errors, it's better to `discard` a few of those
 	// initial events WITHOUT writing to stdout (updating statusbar).
-	time.Sleep(time.Duration(Config.TitleMod.Delay) * time.Second)
+	time.Sleep(time.Duration(Config.TiMod.Delay) * time.Second)
 
 	winRecv := i3.Subscribe(i3.WindowEventType)
 
@@ -91,12 +91,13 @@ func makeTitle(title string) string {
 	//	 fmt.Println(len([]rune(str))) // prints 2
 	//
 	// `len([]rune(s))` pattern is optimized by compiler.
-	if len([]rune(title)) > Config.TitleMod.MaxLen {
-		rs := []rune(title)                // alloc.
-		rs = rs[:Config.TitleMod.MaxLen]   // shrink (no alloc.)
-		rs = rs[:nonspaceIndexRight(rs)+1] // drop possible trailing spaces (no alloc.)
-		rs = append(rs, '…')               // append shrinkage indicator (no alloc.)
-		title = string(rs)                 // alloc.
+	if len([]rune(title)) > Config.TiMod.MaxLen {
+		rs := []rune(title)                                 // alloc.
+		rs = rs[:Config.TiMod.MaxLen]                       // shrink (no alloc.)
+		rs = rs[:lastSafeIndex(rs, Config.TiMod.MaxEscLen)] // drop possible half-fromed escape sequence (no alloc.)
+		rs = rs[:lastNonspaceIndex(rs)+1]                   // drop possible trailing spaces (no alloc.)
+		rs = append(rs, '…')                                // append shrinkage indicator (no alloc.)
+		title = string(rs)                                  // alloc.
 	}
 
 	return titlef(title)
@@ -105,6 +106,6 @@ func makeTitle(title string) string {
 // printline inserts `TITLE` into `LINE` (the coming stdin) then prints the result to stdout.
 func printline() {
 	fmt.Fprintf(os.Stdout, "%s\n",
-		bytes.Replace(LINE, []byte(Config.TitleMod.PH), []byte(TITLE), 1),
+		bytes.Replace(LINE, []byte(Config.TiMod.PH), []byte(TITLE), 1),
 	)
 }
