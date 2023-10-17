@@ -94,8 +94,8 @@ func makeTitle(title string) string {
 	if len([]rune(title)) > cn.TiMod.MaxLen {
 		rs := []rune(title)                             // alloc.
 		rs = rs[:cn.TiMod.MaxLen]                       // shrink (no alloc.)
-		rs = rs[:lastSafeIndex(rs, cn.TiMod.MaxEscLen)] // drop possible half-fromed escape sequence (no alloc.)
-		rs = rs[:lastNonspaceIndex(rs)+1]               // drop possible trailing spaces (no alloc.)
+		rs = rs[:lastSafeIndex(rs, cn.TiMod.MaxEscLen)] // drop half-fromed escape sequence (no alloc.)
+		rs = rs[:lastNonspaceIndex(rs)+1]               // drop trailing spaces (no alloc.)
 		rs = append(rs, '…')                            // append shrinkage indicator (no alloc.)
 		title = string(rs)                              // alloc.
 	}
