@@ -88,12 +88,12 @@ func makeTitle(title string) string {
 		// This may look cumbersome, but it's clear and easy to maintain.
 		// And as shown by the benchmarks, slicing a slice multiple times rather
 		// than once, does not affect performance in any meaningful way.
-		rs := []rune(title)                              // alloc.
-		rs = rs[:cnf.TiMod.MaxLen]                       // shrink (no alloc.)
-		rs = rs[:lastSafeIndex(rs, cnf.TiMod.MaxEscLen)] // drop half-fromed escape sequence (no alloc.)
-		rs = rs[:lastNonspaceIndex(rs)+1]                // drop trailing spaces (no alloc.)
-		rs = append(rs, '…')                             // append shrinkage indicator (no alloc.)
-		title = string(rs)                               // alloc.
+		rs := []rune(title)                                   // alloc.
+		rs = rs[:cnf.TiMod.MaxLen]                            // shrink (no alloc.)
+		rs = rs[:lastNonEscapeIndex(rs, cnf.TiMod.MaxEscLen)] // drop half-fromed escape sequence (no alloc.)
+		rs = rs[:lastNonSpaceIndex(rs)+1]                     // drop trailing spaces (no alloc.)
+		rs = append(rs, '…')                                  // append shrinkage indicator (no alloc.)
+		title = string(rs)                                    // alloc.
 	}
 
 	return titlef(title)
