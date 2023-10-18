@@ -45,15 +45,14 @@ func titlef(t string) string { return fmt.Sprintf(cnf.TiMod.Format, t) }
 // is detected, it returns len(rs).
 func lastSafeIndex(rs []rune, width int) int {
 	var (
-		len0  = len(rs)
-		start = len0 - width
-		end   = len0 - 1
+		end   = len(rs)
+		start = end - width
 
 		iSemicolon = -1
 		iAmpersand = -1
 	)
 
-	for i := end; i >= start; i-- {
+	for i := end - 1; i >= start; i-- {
 		switch {
 		case iAmpersand < 0 && rs[i] == '&':
 			iAmpersand = i
@@ -65,14 +64,15 @@ func lastSafeIndex(rs []rune, width int) int {
 	switch {
 	case iAmpersand < iSemicolon:
 		// There's a fully formed escape sequence inside width before end. e.g. `&escape;`
-		return len0
+		// Or there's a semicolon and no ampersand inside width before end. e.g. `cape;`
+		return end
 	case iAmpersand > 0:
 		// There's a half-formed escape sequence inside width before end. e.g. `&esca`
 		return iAmpersand
 	}
 
-	// There was no escape sequence inside the width.
-	return len0
+	// No escape sequence was detected inside width before end.
+	return end
 }
 
 // lastNonspaceIndex returns the index of last non-space character in rs.

@@ -83,15 +83,11 @@ func readLine() {
 // makeTitle applies the defined filters, maxlen, format, etc. to title.
 func makeTitle(title string) string {
 	title = cnf.Replacer.Replace(title)
-	// Convert title string to runes, because unicode characters can have length > 1
-	// when they're actually one single rune.
-	// example:
-	//	 str := "·—"
-	//	 fmt.Println(len(str)) // prints 5
-	//	 fmt.Println(len([]rune(str))) // prints 2
-	//
-	// `len([]rune(s))` pattern is optimized by compiler.
+	// Note: `len([]rune(string))` pattern is optimized by compiler.
 	if len([]rune(title)) > cnf.TiMod.MaxLen {
+		// This may look cumbersome, but it's clear and easy to maintain.
+		// And as shown by the benchmarks, slicing a slice multiple times rather
+		// than once, does not affect performance in any meaningful way.
 		rs := []rune(title)                              // alloc.
 		rs = rs[:cnf.TiMod.MaxLen]                       // shrink (no alloc.)
 		rs = rs[:lastSafeIndex(rs, cnf.TiMod.MaxEscLen)] // drop half-fromed escape sequence (no alloc.)

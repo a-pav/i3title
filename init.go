@@ -28,13 +28,13 @@ func initConfig(cwd string) {
 		// Initialize strings.Replacer.
 		cnf.Replacer = strings.NewReplacer(cnf.OldNew...)
 		// Determine the biggest escape sequence width.
-		w, oldnew := 0, cnf.OldNew
+		width, oldnew := 0, cnf.OldNew
 		for i := 0; i < len(oldnew); i += 2 {
 			if l := len(oldnew[i+1]); l > 0 && oldnew[i+1][0] == '&' {
-				w = max(w, l)
+				width = max(width, l)
 			}
 		}
-		cnf.TiMod.MaxEscLen = w
+		cnf.TiMod.MaxEscLen = width
 	}
 }
 

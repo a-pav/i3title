@@ -37,13 +37,15 @@ var oldnew = []string{
 }
 
 func getBaseString() string {
-	return "~!@#$%^&*()_+-=[]{}|;:'\"<>?,./` — Firefox Developer Edition\\"
+	return "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx0987654&321"
+	// return "~!@#$%^&*()_+-=[]{}|;:'\"<>?,./` — Firefox Developer Edition\\"
 	// return "( playground ) bench/re-vs-replacer/re_vs_replacer_test.go"
 	// return "\\"
 }
 
 func getBaseBytes() []byte {
-	return []byte("~!@#$%^&*()_+-=[]{}|;:'\"<>?,./` — Firefox Developer Edition\\")
+	return []byte("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx1234567&890")
+	// return []byte("~!@#$%^&*()_+-=[]{}|;:'\"<>?,./` — Firefox Developer Edition\\")
 	// return []byte("( playground ) bench/re-vs-replacer/re_vs_replacer_test.go")
 	// return []byte("\\")
 }
