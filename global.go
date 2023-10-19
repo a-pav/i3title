@@ -15,19 +15,16 @@ var (
 
 	// cnf is the Config struct.
 	cnf = struct {
-		Debug   bool   `json:"debug"`
-		BufSize uint16 `json:"buffer_size"` // max: 65535, 64KB
-		TiMod   struct {
-			PH     string `json:"placeholder"`
-			Format string `json:"format"`
-			MaxLen int    `json:"max_length"`
-			Delay  uint8  `json:"delay"`
+		Debug   bool     `json:"debug"`
+		BufSize uint16   `json:"buffer_size"` // max: 65535, 64KB
+		PH      string   `json:"placeholder"`
+		Format  string   `json:"format"`
+		MaxLen  int      `json:"max_length"`
+		Delay   uint8    `json:"delay"` // max: 255
+		OldNew  []string `json:"old_new"`
 
-			MaxEscLen int
-		} `json:"title_module"`
-		OldNew []string `json:"old_new"`
-
-		Replacer *strings.Replacer
+		Replacer  *strings.Replacer
+		MaxEscLen int
 	}{}
 )
 
@@ -37,7 +34,7 @@ var (
 func getwd() string { return filepath.Dir(os.Args[0]) }
 
 // titlef formats title as defined in config.
-func titlef(t string) string { return fmt.Sprintf(cnf.TiMod.Format, t) }
+func titlef(t string) string { return fmt.Sprintf(cnf.Format, t) }
 
 // lastNonEscapeIndex checks if rs ends within a escape sequence. If so, it
 // returns the index of escape sequece's beginning. Otherwise len(rs) is returned.

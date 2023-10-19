@@ -31,13 +31,13 @@ func main() {
 }
 
 func readTitle() {
-	if cnf.TiMod.Delay > 0 {
+	if cnf.Delay > 0 {
 		// Ideally, we want to update statusbar upon each change-of-title event.
 		// But i3 creates too many of those events in less than a second while
 		// system and/or i3 itself is initially starting. To avoid errors, it's
 		// best to ignore first few initial events and not write to stdout (i.e. update statusbar).
-		TITLE = titlef(fmt.Sprintf("i3title start delay: %ds", cnf.TiMod.Delay))
-		time.Sleep(time.Duration(cnf.TiMod.Delay) * time.Second)
+		TITLE = titlef(fmt.Sprintf("i3title start delay: %ds", cnf.Delay))
+		time.Sleep(time.Duration(cnf.Delay) * time.Second)
 		// Sudden empty title shuold indicate that normal operation has started.
 		TITLE = ""
 	}
@@ -88,16 +88,16 @@ func readLine() {
 func makeTitle(title string) string {
 	title = cnf.Replacer.Replace(title)
 	// Note: `len([]rune(string))` pattern is optimized by compiler.
-	if len([]rune(title)) > cnf.TiMod.MaxLen {
+	if len([]rune(title)) > cnf.MaxLen {
 		// This may look cumbersome, but it's clear and easy to maintain.
 		// And as shown by the benchmarks, slicing a slice multiple times rather
 		// than once, does not affect performance in any meaningful way.
-		rs := []rune(title)                                   // alloc.
-		rs = rs[:cnf.TiMod.MaxLen]                            // shrink (no alloc.)
-		rs = rs[:lastNonEscapeIndex(rs, cnf.TiMod.MaxEscLen)] // drop half-fromed escape sequence (no alloc.)
-		rs = rs[:lastNonSpaceIndex(rs)+1]                     // drop trailing spaces (no alloc.)
-		rs = append(rs, '…')                                  // append shrinkage indicator (no alloc.)
-		title = string(rs)                                    // alloc.
+		rs := []rune(title)                             // alloc.
+		rs = rs[:cnf.MaxLen]                            // shrink (no alloc.)
+		rs = rs[:lastNonEscapeIndex(rs, cnf.MaxEscLen)] // drop half-fromed escape sequence (no alloc.)
+		rs = rs[:lastNonSpaceIndex(rs)+1]               // drop trailing spaces (no alloc.)
+		rs = append(rs, '…')                            // append shrinkage indicator (no alloc.)
+		title = string(rs)                              // alloc.
 	}
 
 	return titlef(title)
@@ -106,6 +106,6 @@ func makeTitle(title string) string {
 // printline inserts `TITLE` into `LINE` (the coming stdin) then prints the result to stdout.
 func printline() {
 	fmt.Fprintf(os.Stdout, "%s\n",
-		bytes.Replace(LINE, []byte(cnf.TiMod.PH), []byte(TITLE), 1),
+		bytes.Replace(LINE, []byte(cnf.PH), []byte(TITLE), 1),
 	)
 }

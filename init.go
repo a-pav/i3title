@@ -31,7 +31,7 @@ func initConfig(cwd string) {
 				width = max(width, l)
 			}
 		}
-		cnf.TiMod.MaxEscLen = width
+		cnf.MaxEscLen = width
 	}
 }
 
