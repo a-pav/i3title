@@ -15,13 +15,13 @@ var (
 
 	// cnf is the Config struct.
 	cnf = struct {
-		Debug   bool     `json:"debug"`
-		BufSize uint16   `json:"buffer_size"` // max: 65535, 64KB
 		PH      string   `json:"placeholder"`
 		Format  string   `json:"format"`
-		MaxLen  int      `json:"max_length"`
-		Delay   uint8    `json:"delay"` // max: 255
 		OldNew  []string `json:"old_new"`
+		MaxLen  int      `json:"max_length"`
+		BufSize uint16   `json:"buffer_size"` // max: 65535, 64KB
+		Delay   uint8    `json:"delay"`       // max: 255
+		Debug   bool     `json:"debug"`
 
 		Replacer  *strings.Replacer
 		MaxEscLen int
