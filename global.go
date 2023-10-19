@@ -39,15 +39,13 @@ func getwd() string { return filepath.Dir(os.Args[0]) }
 // titlef formats title as defined in config.
 func titlef(t string) string { return fmt.Sprintf(cnf.TiMod.Format, t) }
 
-// lastNonEscapeIndex checks rs[len(rs)-width : len(rs)] and returns an index
-// which is not within a half-formed escape sequence. If half-formed escape sequence
-// is detected, index of its beginning is returned, for easy dropping in caller.
-// Otherwise len(rs) is returned.
+// lastNonEscapeIndex checks if rs ends within a escape sequence. If so, it
+// returns the index of escape sequece's beginning. Otherwise len(rs) is returned.
+// width determines how far from rs's end is examined.
 func lastNonEscapeIndex(rs []rune, width int) int {
 	var (
-		end   = len(rs)
-		start = end - width
-
+		start      = len(rs) - width
+		end        = len(rs)
 		iSemicolon = -1
 		iAmpersand = -1
 	)
@@ -63,17 +61,16 @@ func lastNonEscapeIndex(rs []rune, width int) int {
 
 	switch {
 	case iAmpersand < iSemicolon:
-		// There's a fully formed escape sequence inside width before end with
-		// both `&` and `;`. e.g. `&escape;` Or, there's a `;` and no `&` inside
-		// width before end. e.g. `cape;` Both are OK.
+		// There's a fully formed escape sequence inside width with both `&` and
+		// `;` (like: `&escape;`) Or, there's a `;` but no `&`. (like: `cape;`).
 		return end
 	case iAmpersand > 0:
-		// There's a half-formed escape sequence inside width before end with
-		// only `&` and no `;`  e.g. `&esca`
+		// There's a half-formed escape sequence inside width with only `&` and
+		// no `;` (like: `&esca`)
 		return iAmpersand
 	}
 
-	// No escape sequence was detected inside width before end.
+	// No escape sequence was detected inside width.
 	return end
 }
 

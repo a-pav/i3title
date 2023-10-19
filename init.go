@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -15,8 +14,6 @@ func init() {
 	log.SetFlags(log.Lmsgprefix)
 
 	initConfig(getwd())
-
-	TITLE = titlef(fmt.Sprintf("Delay: %ds", cnf.TiMod.Delay))
 }
 
 func initConfig(cwd string) {

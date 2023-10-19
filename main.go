@@ -31,11 +31,16 @@ func main() {
 }
 
 func readTitle() {
-	// Ideally, we want to update statusbar upon each change-of-title event. But,
-	// i3 creates too many of those events in less than a second while system is
-	// initially starting. To avoid errors, it's better to `discard` a few of those
-	// initial events WITHOUT writing to stdout (updating statusbar).
-	time.Sleep(time.Duration(cnf.TiMod.Delay) * time.Second)
+	if cnf.TiMod.Delay > 0 {
+		// Ideally, we want to update statusbar upon each change-of-title event.
+		// But i3 creates too many of those events in less than a second while
+		// system and/or i3 itself is initially starting. To avoid errors, it's
+		// best to ignore first few initial events and not write to stdout (i.e. update statusbar).
+		TITLE = titlef(fmt.Sprintf("i3title start delay: %ds", cnf.TiMod.Delay))
+		time.Sleep(time.Duration(cnf.TiMod.Delay) * time.Second)
+		// Sudden empty title shuold indicate that normal operation has started.
+		TITLE = ""
+	}
 
 	winRecv := i3.Subscribe(i3.WindowEventType)
 
@@ -44,7 +49,6 @@ func readTitle() {
 		TITLE = makeTitle(ev.Container.WindowProperties.Title)
 
 		printline()
-		// There's no need to signal i3status to refresh. It picks on the stdout by itself.
 	}
 
 	log.Fatal("ending program:", winRecv.Close())
