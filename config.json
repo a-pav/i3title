@@ -2,9 +2,9 @@
     "debug": true,
     "buffer_size": 1500,
     "placeholder": "ttlph",
-    "format": "<span foreground='#7df0ff' font='11'>%s</span>",
+    "format": "<span foreground='#8af0fd' font='11'>%s</span>",
     "max_length": 95,
-    "delay": 10,
+    "start_delay": 10,
     "old_new": [
         // To test, run document.title = `  ~!@#$%^&*()_+-=[]{}|\;:'"<>?,./\`` in browser console.
         // https://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references

@@ -31,13 +31,13 @@ func main() {
 }
 
 func readTitle() {
-	if cnf.Delay > 0 {
+	if cnf.StartDelay > 0 {
 		// Ideally, we want to update statusbar upon each change-of-title event.
 		// But i3 creates too many of those events in less than a second while
 		// system and/or i3 itself is initially starting. To avoid errors, it's
 		// best to ignore first few initial events and not write to stdout (i.e. update statusbar).
-		TITLE = titlef(fmt.Sprintf("i3title start delay: %ds", cnf.Delay))
-		time.Sleep(time.Duration(cnf.Delay) * time.Second)
+		TITLE = titlef(fmt.Sprintf("i3title start delay: %ds", cnf.StartDelay))
+		time.Sleep(time.Duration(cnf.StartDelay) * time.Second)
 		// Sudden empty title shuold indicate that normal operation has started.
 		TITLE = ""
 	}
