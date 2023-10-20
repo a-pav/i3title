@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,7 +15,6 @@ var (
 	// cnf is the Config struct.
 	cnf = struct {
 		PH         string   `json:"placeholder"`
-		Format     string   `json:"format"`
 		OldNew     []string `json:"old_new"`
 		MaxLen     int      `json:"max_length"`
 		BufSize    uint16   `json:"buffer_size"` // max: 65535, 64KB
@@ -32,9 +30,6 @@ var (
 // Using os.Args[0] is the surest way to get the actual CWD. i3 seems to run
 // everything from /home/$USER.
 func getwd() string { return filepath.Dir(os.Args[0]) }
-
-// titlef formats title as defined in config.
-func titlef(t string) string { return fmt.Sprintf(cnf.Format, t) }
 
 // lastNonEscapeIndex checks if rs ends within a escape sequence. If so, it
 // returns the index of escape sequece's beginning. Otherwise len(rs) is returned.

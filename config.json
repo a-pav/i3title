@@ -2,7 +2,6 @@
     "debug": true,
     "buffer_size": 1500,
     "placeholder": "ttlph",
-    "format": "<span foreground='#8af0fd' font='11'>%s</span>",
     "max_length": 95,
     "start_delay": 10,
     "old_new": [
