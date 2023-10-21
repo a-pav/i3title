@@ -92,12 +92,12 @@ func makeTitle(title string) string {
 		// This may look cumbersome, but it's clear and easy to maintain.
 		// And as shown by the benchmarks, slicing a slice multiple times rather
 		// than once, does not affect performance in any meaningful way.
-		rs := []rune(title)                             // alloc.
-		rs = rs[:cnf.MaxLen]                            // shrink (no alloc.)
-		rs = rs[:lastNonEscapeIndex(rs, cnf.MaxEscLen)] // drop half-fromed escape sequence (no alloc.)
-		rs = rs[:lastNonSpaceIndex(rs)+1]               // drop trailing spaces (no alloc.)
-		rs = append(rs, '…')                            // append shrinkage indicator (no alloc.)
-		title = string(rs)                              // alloc.
+		s := []rune(title)                           // alloc.
+		s = s[:cnf.MaxLen]                           // shrink (no alloc.)
+		s = s[:lastNonEscapeIndex(s, cnf.MaxEscLen)] // drop trailing half-fromed escape sequence (no alloc.)
+		s = s[:lastNonSpaceIndex(s)+1]               // drop trailing spaces (no alloc.)
+		s = append(s, '…')                           // append shrinkage indicator (no alloc.)
+		title = string(s)                            // alloc.
 	}
 
 	return title
@@ -106,6 +106,8 @@ func makeTitle(title string) string {
 // printline inserts `TITLE` into `LINE` (the coming stdin) then prints the result to stdout.
 func printline() {
 	fmt.Fprintf(os.Stdout, "%s\n",
+		// Read-only `[]byte(string)` convertions are optimized by compiler:
+		// https://github.com/golang/go/issues/2205 (commits=c8adb30,925d2fb,d63c88d).
 		bytes.Replace(LINE, []byte(cnf.PH), []byte(TITLE), 1),
 	)
 }

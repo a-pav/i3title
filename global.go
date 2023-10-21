@@ -31,22 +31,22 @@ var (
 // everything from /home/$USER.
 func getwd() string { return filepath.Dir(os.Args[0]) }
 
-// lastNonEscapeIndex checks if rs ends within a escape sequence. If so, it
-// returns the index of escape sequece's beginning. Otherwise len(rs) is returned.
-// width determines how far from rs's end is examined.
-func lastNonEscapeIndex(rs []rune, width int) int {
+// lastNonEscapeIndex checks if s ends within a escape sequence. If so, it
+// returns the index of escape sequece's beginning. Otherwise len(s) is returned.
+// width determines how far from s's end is examined.
+func lastNonEscapeIndex(s []rune, width int) int {
 	var (
-		start      = len(rs) - width
-		end        = len(rs)
+		start      = len(s) - width
+		end        = len(s)
 		iSemicolon = -1
 		iAmpersand = -1
 	)
 
 	for i := end - 1; i >= start; i-- {
 		switch {
-		case iAmpersand < 0 && rs[i] == '&':
+		case iAmpersand < 0 && s[i] == '&':
 			iAmpersand = i
-		case iSemicolon < 0 && rs[i] == ';':
+		case iSemicolon < 0 && s[i] == ';':
 			iSemicolon = i
 		}
 	}
@@ -66,10 +66,10 @@ func lastNonEscapeIndex(rs []rune, width int) int {
 	return end
 }
 
-// lastNonSpaceIndex returns the index of last non-space character in rs.
-func lastNonSpaceIndex(rs []rune) int {
-	for i := len(rs) - 1; i > 0; i-- {
-		if rs[i] != ' ' {
+// lastNonSpaceIndex returns the index of last non-space character in s.
+func lastNonSpaceIndex(s []rune) int {
+	for i := len(s) - 1; i > 0; i-- {
+		if s[i] != ' ' {
 			return i
 		}
 	}
