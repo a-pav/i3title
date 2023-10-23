@@ -36,7 +36,7 @@ func readTitle() {
 		// But i3 creates too many of those events in less than a second while
 		// system and/or i3 itself is initially starting. To avoid errors, it's
 		// best to ignore first few initial events and not write to stdout (i.e. update statusbar).
-		TITLE = fmt.Sprintf("i3title start delay: %ds", cnf.StartDelay)
+		TITLE = fmt.Sprintf("<i>i3title start delay: %ds</i>", cnf.StartDelay)
 		time.Sleep(time.Duration(cnf.StartDelay) * time.Second)
 		// Sudden empty title shuold indicate that normal operation has started.
 		TITLE = ""
