@@ -68,7 +68,7 @@ func lastNonEscapeIndex(s []rune, width int) int {
 
 // lastNonSpaceIndex returns the index of last non-space character in s.
 func lastNonSpaceIndex(s []rune) int {
-	for i := len(s) - 1; i > 0; i-- {
+	for i := len(s) - 1; i >= 0; i-- {
 		if s[i] != ' ' {
 			return i
 		}

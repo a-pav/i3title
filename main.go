@@ -6,36 +6,23 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"sync"
 	"time"
 
 	"go.i3wm.org/i3/v4"
 )
 
 func main() {
-	wg := sync.WaitGroup{}
+	go readLine()
+	go readTitle()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		readLine()
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		readTitle()
-	}()
-
-	wg.Wait()
+	select {} // Block forever.
 }
 
 func readTitle() {
 	if cnf.StartDelay > 0 {
-		// Ideally, we want to update statusbar upon each change-of-title event.
-		// But i3 creates too many of those events in less than a second while
-		// system and/or i3 itself is initially starting. To avoid errors, it's
-		// best to ignore first few initial events and not write to stdout (i.e. update statusbar).
+		// i3 creates too many change-of-title events in a row while system and/or
+		// i3 itself is initially starting. To avoid errors, it's best not to
+		// subscribe to the events too early.
 		TITLE = fmt.Sprintf("<i>i3title start delay: %ds</i>", cnf.StartDelay)
 		time.Sleep(time.Duration(cnf.StartDelay) * time.Second)
 		// Sudden empty title shuold indicate that normal operation has started.

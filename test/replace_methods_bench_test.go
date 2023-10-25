@@ -44,7 +44,7 @@ func getBaseString() string {
 }
 
 func getBaseBytes() []byte {
-	return []byte("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx1234567&890")
+	return []byte("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx0987654&321")
 	// return []byte("~!@#$%^&*()_+-=[]{}|;:'\"<>?,./` — Firefox Developer Edition\\")
 	// return []byte("( playground ) bench/re-vs-replacer/re_vs_replacer_test.go")
 	// return []byte("\\")
