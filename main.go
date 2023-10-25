@@ -1,131 +1,100 @@
 package main
 
 import (
-	"encoding/json"
+	"bufio"
+	"bytes"
+	"fmt"
 	"log"
 	"os"
-	"os/exec"
-	"regexp"
+	"time"
 
 	"go.i3wm.org/i3/v4"
 )
 
-type MatchReplace struct {
-	Match *regexp.Regexp
-	Repl  string
-}
-
-var (
-	titlefi *os.File
-	config  = struct {
-		Debug   bool       `json:"debug"`
-		MaxLen  int        `json:"max_length"`
-		Filters [][]string `json:"filters"`
-
-		FiltersCompiled []MatchReplace
-	}{}
-)
-
-func initReadConfig(args0 string) {
-	// read config file from '<program-name>.config.json'
-	bs, err := os.ReadFile(args0 + ".config.json")
-	if err != nil {
-		log.Fatal("opening config file: ", err)
-	}
-
-	// strip comments
-	bs = regexp.MustCompile(`//.*`).ReplaceAll(bs, nil)
-
-	if err := json.Unmarshal(bs, &config); err != nil {
-		log.Fatal("reading config file: ", err)
-	}
-
-	filtersCompiled := []MatchReplace{}
-	for _, mr := range config.Filters {
-		if l := len(mr); l != 2 {
-			continue
-		}
-
-		re, err := regexp.Compile(mr[0])
-		if err != nil {
-			log.Println("error compiling regex:", err)
-			continue
-		}
-
-		filtersCompiled = append(filtersCompiled, MatchReplace{
-			Match: re,
-			Repl:  mr[1],
-		})
-	}
-
-	config.FiltersCompiled = filtersCompiled
-	config.Filters = nil // discard
-}
-
-func initOpenTitleFile(args0 string) {
-	// open file for writing title at '<program-name>.out'
-	fi, err := os.Create(args0 + ".out")
-	if err != nil {
-		log.Fatal("could not open/create window-title file:", err)
-	}
-	titlefi = fi
-}
-
-func init() {
-	args0 := os.Args[0]
-
-	initReadConfig(args0)
-	initOpenTitleFile(args0)
-}
-
 func main() {
+	go readLine()
+	go readTitle()
+
+	select {} // Block forever.
+}
+
+func readTitle() {
+	if cnf.StartDelay > 0 {
+		// i3 creates too many change-of-title events in a row while system and/or
+		// i3 itself is initially starting. To avoid errors, it's best not to
+		// subscribe to the events too early.
+		TITLE = fmt.Sprintf("<i>i3title start delay: %ds</i>", cnf.StartDelay)
+		time.Sleep(time.Duration(cnf.StartDelay) * time.Second)
+		// Sudden empty title shuold indicate that normal operation has started.
+		TITLE = ""
+	}
+
 	winRecv := i3.Subscribe(i3.WindowEventType)
+
 	for winRecv.Next() {
 		ev := winRecv.Event().(*i3.WindowEvent)
-		writeTitle(ev.Container.WindowProperties.Title)
-		i3StatusRefresh()
+		TITLE = makeTitle(ev.Container.WindowProperties.Title)
 
-		// break
+		printline()
 	}
 
 	log.Fatal("ending program:", winRecv.Close())
 }
 
-func writeTitle(title string) {
-	for _, filter := range config.FiltersCompiled {
-		title = filter.Match.ReplaceAllString(title, filter.Repl)
+func readLine() {
+	// DEBUG
+	// cmd := exec.Command("i3status")
+	// stdout, err := cmd.StdoutPipe()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// if err := cmd.Start(); err != nil {
+	// 	log.Fatal(err)
+	// }
+	// defer cmd.Process.Release()
+	// scanner := bufio.NewScanner(stdout)
+
+	scanner := bufio.NewScanner(os.Stdin)
+	if err := scanner.Err(); err != nil {
+		log.Fatal("scanner failed to init: ", err)
+	}
+	// Set maximum buffer size.
+	scanner.Buffer(make([]byte, 0, cnf.BufSize), 0)
+
+	for scanner.Scan() {
+		LINE = scanner.Bytes()
+		printline()
 	}
 
-	// convert title string to runes, because unicode characters can have length > 1
-	// when they're actually one single rune.
-	// example:
-	//	 str := "·—"
-	//	 fmt.Println(len(str)) // prints 5
-	//	 fmt.Println(len([]rune(str))) // prints 2
-	titleRunes := []rune(title)
-	if len(titleRunes) > config.MaxLen {
-		title = string(titleRunes[:config.MaxLen]) + "..."
-	}
-
-	if err := titlefi.Truncate(0); config.Debug && err != nil {
-		log.Println("truncating 'window-title' file:", err)
-	}
-	if _, err := titlefi.Seek(0, 0); config.Debug && err != nil {
-		log.Println("seeking 'window-title' file:", err)
-
-	}
-	if _, err := titlefi.Write([]byte(title)); config.Debug && err != nil {
-		log.Println("writing 'window-title' file:", err)
-	}
-
-	switch config.Debug {
-	case true:
-		go log.Printf("%q", title)
+	if err := scanner.Err(); err != nil {
+		log.Fatal("scanner error:", err)
 	}
 }
 
-func i3StatusRefresh() {
-	if err := exec.Command("killall", "-USR1", "i3status").Run(); config.Debug && err != nil {
-		log.Println("error refreshing i3status:", err)
+// makeTitle applies the defined filters, maxlen, format, etc. to title.
+func makeTitle(title string) string {
+	title = cnf.Replacer.Replace(title)
+	// Note: `len([]rune(string))` pattern is optimized by compiler.
+	if len([]rune(title)) > cnf.MaxLen {
+		// This may look cumbersome, but it's clear and easy to maintain.
+		// And as shown by the benchmarks, slicing a slice multiple times rather
+		// than once, does not affect performance in any meaningful way.
+		s := []rune(title)                           // alloc.
+		s = s[:cnf.MaxLen]                           // shrink (no alloc.)
+		s = s[:lastNonEscapeIndex(s, cnf.MaxEscLen)] // drop trailing half-fromed escape sequence (no alloc.)
+		s = s[:lastNonSpaceIndex(s)+1]               // drop trailing spaces (no alloc.)
+		s = append(s, '…')                           // append shrinkage indicator (no alloc.)
+		title = string(s)                            // alloc.
 	}
+
+	return title
+}
+
+// printline inserts `TITLE` into `LINE` (the coming stdin) then prints the result to stdout.
+func printline() {
+	fmt.Fprintf(os.Stdout, "%s\n",
+		// Read-only `[]byte(string)` convertions are optimized by compiler:
+		// https://github.com/golang/go/issues/2205 (commits=c8adb30,925d2fb,d63c88d).
+		bytes.Replace(LINE, []byte(cnf.PH), []byte(TITLE), 1),
+	)
 }
