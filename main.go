@@ -12,11 +12,39 @@ import (
 )
 
 func main() {
-	// TODO: go readMode()
+	go readMode()
 	go readLine()
 	go readTitle()
 
 	select {} // Block forever.
+}
+
+func readMode() {
+	modeRecv := i3.Subscribe(i3.ModeEventType)
+
+	for modeRecv.Next() {
+		e := modeRecv.Event().(*i3.ModeEvent)
+		switch e.Change {
+		case "default":
+			MODE = ""
+			MODE_LEN = 0
+		default:
+			if e.PangoMarkup {
+				MODE = e.Change + " <span color='#666666'>|</span> "
+			} else {
+				MODE = fmt.Sprintf(
+					"<span color='red'><i>%s</i></span> <span color='#666666'>|</span> ",
+					e.Change,
+				)
+			}
+			// == len(<mode-name>) + len(<separator>)
+			MODE_LEN = len(e.Change) + 3
+		}
+
+		printline()
+	}
+
+	log.Fatal("ending program:", modeRecv.Close())
 }
 
 func readTitle() {
@@ -42,7 +70,7 @@ func readTitle() {
 		}
 
 		if t := e.Container.WindowProperties.Title; t != "" {
-			t = makeTitle(t)
+			t = cnf.Replacer.Replace(t)
 			if TITLE != t {
 				TITLE = t
 				printline()
@@ -83,16 +111,15 @@ func readLine() {
 	}
 }
 
-// makeTitle applies the defined filters, maxlen, format, etc. to title.
-func makeTitle(title string) string {
-	title = cnf.Replacer.Replace(title)
+// trimTitle applies the defined filters, maxlen, format, etc. to title.
+func trimTitle(title string, maxlen int) string {
 	// Note: `len([]rune(string))` pattern is optimized by compiler.
-	if len([]rune(title)) > cnf.MaxLen {
+	if len([]rune(title)) > maxlen {
 		// This may look cumbersome, but it's clear and easy to maintain.
 		// And as shown by the benchmarks, slicing a slice multiple times rather
 		// than once, does not affect performance in any meaningful way.
 		s := []rune(title)                           // alloc.
-		s = s[:cnf.MaxLen]                           // shrink (no alloc.)
+		s = s[:maxlen]                               // shrink (no alloc.)
 		s = s[:lastNonEscapeIndex(s, cnf.MaxEscLen)] // drop trailing half-fromed escape sequence (no alloc.)
 		s = s[:lastNonSpaceIndex(s)+1]               // drop trailing spaces (no alloc.)
 		s = append(s, '…')                           // append shrinkage indicator (no alloc.)
@@ -104,9 +131,15 @@ func makeTitle(title string) string {
 
 // printline inserts `TITLE` into `LINE` (the coming stdin) then prints the result to stdout.
 func printline() {
+	t := trimTitle(TITLE, cnf.MaxLen-MODE_LEN)
+
+	if MODE_LEN != 0 {
+		t = MODE + t
+	}
+
 	fmt.Fprintf(os.Stdout, "%s\n",
 		// Read-only `[]byte(string)` convertions are optimized by compiler:
 		// https://github.com/golang/go/issues/2205 (commits=c8adb30,925d2fb,d63c88d).
-		bytes.Replace(LINE, []byte(cnf.PH), []byte(TITLE), 1),
+		bytes.Replace(LINE, []byte(cnf.PH), []byte(t), 1),
 	)
 }

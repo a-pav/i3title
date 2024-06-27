@@ -9,8 +9,10 @@ import (
 var (
 	// Globally shared variables.
 	// For the sake of this program, these should work fine with no mutex mechanism in place.
-	TITLE string
-	LINE  []byte
+	MODE     string
+	MODE_LEN int
+	TITLE    string
+	LINE     []byte
 
 	// cnf is the Config struct.
 	cnf = struct {
