@@ -112,8 +112,9 @@ func readLine() {
 	}
 }
 
-// trimTitle applies the defined filters, maxlen, format, etc. to title.
-func trimTitle(title string, maxlen int) string {
+// cutTitle cuts title at maxlen, ensuring that it doesn't end with white space or
+// deformed escape sequence.
+func cutTitle(title string, maxlen int) string {
 	// Note: `len([]rune(string))` pattern is optimized by compiler.
 	if len([]rune(title)) > maxlen {
 		// This may look cumbersome, but it's clear and easy to maintain.
@@ -133,7 +134,7 @@ func trimTitle(title string, maxlen int) string {
 // printline inserts `TITLE` into `LINE` (the coming stdin) then prints the result to stdout.
 func printline() {
 	if UPDATE {
-		TITLE = trimTitle(TITLE_RAW, cnf.MaxLen-MODE_LEN)
+		TITLE = cutTitle(TITLE_RAW, cnf.MaxLen-MODE_LEN)
 		if MODE != "" {
 			TITLE = MODE + TITLE
 		}
