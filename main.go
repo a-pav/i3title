@@ -12,6 +12,7 @@ import (
 )
 
 func main() {
+	// TODO: go readMode()
 	go readLine()
 	go readTitle()
 
@@ -19,6 +20,7 @@ func main() {
 }
 
 func readTitle() {
+	// TODO: Remove: After commit 57ea2c088 there might be no need to delay.
 	if cnf.StartDelay > 0 {
 		// i3 creates too many change-of-title events in a row while system and/or
 		// i3 itself is initially starting. To avoid errors, it's best not to
