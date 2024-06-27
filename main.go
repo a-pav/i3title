@@ -32,10 +32,20 @@ func readTitle() {
 	winRecv := i3.Subscribe(i3.WindowEventType)
 
 	for winRecv.Next() {
-		ev := winRecv.Event().(*i3.WindowEvent)
-		TITLE = makeTitle(ev.Container.WindowProperties.Title)
+		e := winRecv.Event().(*i3.WindowEvent)
+		switch e.Change {
+		case "title", "focus":
+		default:
+			continue
+		}
 
-		printline()
+		if t := e.Container.WindowProperties.Title; t != "" {
+			t = makeTitle(t)
+			if TITLE != t {
+				TITLE = t
+				printline()
+			}
+		}
 	}
 
 	log.Fatal("ending program:", winRecv.Close())
