@@ -11,16 +11,17 @@ const (
 	MODE_SEP_LEN = 3
 )
 
+// Globally shared variables.
+// For the sake of this program, these should work fine with no mutex mechanism in place.
 var (
-	// UPDATE is set whenever the title should change.
+	LINE     []byte
+	TITLE    string
+	MODE     string
+	MODE_LEN int
+	// REPORT is inserted into LINE.
+	REPORT string
+	// UPDATE is set whenever REPORT should change.
 	UPDATE bool
-	// Globally shared variables.
-	// For the sake of this program, these should work fine with no mutex mechanism in place.
-	LINE      []byte
-	TITLE     string
-	TITLE_RAW string
-	MODE      string
-	MODE_LEN  int
 
 	// cnf is the Config struct.
 	cnf = struct {
