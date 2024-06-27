@@ -30,17 +30,17 @@ func readMode() {
 			MODE_LEN = 0
 		default:
 			if e.PangoMarkup {
-				MODE = e.Change + " <span color='#666666'>|</span> "
+				MODE = fmt.Sprintf("%s%s", e.Change, MODE_SEP)
 			} else {
 				MODE = fmt.Sprintf(
-					"<span color='red'><i>%s</i></span> <span color='#666666'>|</span> ",
-					e.Change,
+					"<span color='red'><b><i>%s</i></b></span>%s",
+					e.Change, MODE_SEP,
 				)
 			}
-			// == len(<mode-name>) + len(<separator>)
-			MODE_LEN = len(e.Change) + 3
+			// == len(<mode-name>) + len(visible_sep_chars)
+			MODE_LEN = len(e.Change) + MODE_SEP_LEN
 		}
-
+		UPDATE = true
 		printline()
 	}
 
@@ -71,8 +71,9 @@ func readTitle() {
 
 		if t := e.Container.WindowProperties.Title; t != "" {
 			t = cnf.Replacer.Replace(t)
-			if TITLE != t {
-				TITLE = t
+			if TITLE_RAW != t {
+				TITLE_RAW = t
+				UPDATE = true
 				printline()
 			}
 		}
@@ -131,15 +132,17 @@ func trimTitle(title string, maxlen int) string {
 
 // printline inserts `TITLE` into `LINE` (the coming stdin) then prints the result to stdout.
 func printline() {
-	t := trimTitle(TITLE, cnf.MaxLen-MODE_LEN)
-
-	if MODE_LEN != 0 {
-		t = MODE + t
+	if UPDATE {
+		TITLE = trimTitle(TITLE_RAW, cnf.MaxLen-MODE_LEN)
+		if MODE != "" {
+			TITLE = MODE + TITLE
+		}
+		UPDATE = false
 	}
 
 	fmt.Fprintf(os.Stdout, "%s\n",
 		// Read-only `[]byte(string)` convertions are optimized by compiler:
 		// https://github.com/golang/go/issues/2205 (commits=c8adb30,925d2fb,d63c88d).
-		bytes.Replace(LINE, []byte(cnf.PH), []byte(t), 1),
+		bytes.Replace(LINE, []byte(cnf.PH), []byte(TITLE), 1),
 	)
 }

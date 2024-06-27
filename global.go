@@ -6,13 +6,21 @@ import (
 	"strings"
 )
 
+const (
+	MODE_SEP     = " <span color='#666666'>|</span> "
+	MODE_SEP_LEN = 3
+)
+
 var (
+	// UPDATE is set whenever the title should change.
+	UPDATE bool
 	// Globally shared variables.
 	// For the sake of this program, these should work fine with no mutex mechanism in place.
-	MODE     string
-	MODE_LEN int
-	TITLE    string
-	LINE     []byte
+	LINE      []byte
+	TITLE     string
+	TITLE_RAW string
+	MODE      string
+	MODE_LEN  int
 
 	// cnf is the Config struct.
 	cnf = struct {
