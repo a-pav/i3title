@@ -2,9 +2,9 @@
     "debug": true,
     "buffer_size": 1500,
     "placeholder": "ttlph",
-    "max_length": 95,
+    "max_length": 91,
     // TODO: Remove: After commit 57ea2c088 there might be no need to delay.
-    "start_delay": 0,
+    "start_delay": 2,
     "old_new": [
         // To test, run document.title = `  ~!@#$%^&*()_+-=[]{}|\;:'"<>?,./\`` in browser console.
         // https://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references
