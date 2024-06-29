@@ -41,7 +41,7 @@ func readMode() {
 			// == len(<mode-name>) + len(visible_sep_chars)
 			MODE_LEN = len(e.Change) + MODE_SEP_LEN
 		}
-		UPDATE = true
+		buildReport()
 		printline()
 	}
 
@@ -74,7 +74,7 @@ func readTitle() {
 			t = cnf.Replacer.Replace(t)
 			if TITLE != t {
 				TITLE = t
-				UPDATE = true
+				buildReport()
 				printline()
 			}
 		}
@@ -132,16 +132,16 @@ func cutTitle(title string, maxlen int) string {
 	return title
 }
 
+func buildReport() {
+	REPORT = cutTitle(TITLE, cnf.MaxLen-MODE_LEN)
+
+	if MODE != "" {
+		REPORT = MODE + REPORT
+	}
+}
+
 // printline inserts `REPORT` into `LINE` (incoming stdin) then prints it to stdout.
 func printline() {
-	if UPDATE {
-		REPORT = cutTitle(TITLE, cnf.MaxLen-MODE_LEN)
-		if MODE != "" {
-			REPORT = MODE + REPORT
-		}
-		UPDATE = false
-	}
-
 	fmt.Fprintf(os.Stdout, "%s\n",
 		// Read-only `[]byte(string)` convertions are optimized by compiler:
 		// https://github.com/golang/go/issues/2205 (commits=c8adb30,925d2fb,d63c88d).

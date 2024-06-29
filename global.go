@@ -20,8 +20,6 @@ var (
 	MODE_LEN int
 	// REPORT is inserted into LINE.
 	REPORT string
-	// UPDATE is set whenever REPORT should change.
-	UPDATE bool
 
 	// cnf is the Config struct.
 	cnf = struct {
