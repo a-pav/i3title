@@ -70,13 +70,10 @@ func readTitle() {
 			continue
 		}
 
-		if t := e.Container.WindowProperties.Title; t != "" {
-			t = cnf.Replacer.Replace(t)
-			if TITLE != t {
-				TITLE = t
-				buildReport()
-				printline()
-			}
+		if t := e.Container.WindowProperties.Title; t != "" && TITLE != t {
+			TITLE = t
+			buildReport()
+			printline()
 		}
 	}
 
@@ -113,30 +110,34 @@ func readLine() {
 	}
 }
 
-// cutTitle cuts title at maxlen, ensuring that it doesn't end with white space or
-// deformed escape sequence.
-func cutTitle(title string, maxlen int) string {
+func escTitle(title string) string {
+	return cnf.Replacer.Replace(title)
+}
+
+// trimTitle cuts title at maxlen, ensuring that it doesn't end with white space,
+// and runs the replacer on it.
+func trimTitle(title string, maxlen int) string {
 	// Note: `len([]rune(string))` pattern is optimized by compiler.
 	if len([]rune(title)) > maxlen {
 		// This may look cumbersome, but it's clear and easy to maintain.
 		// And as shown by the benchmarks, slicing a slice multiple times rather
 		// than once, does not affect performance in any meaningful way.
-		s := []rune(title)                           // alloc.
-		s = s[:maxlen]                               // shrink (no alloc.)
-		s = s[:lastNonEscapeIndex(s, cnf.MaxEscLen)] // drop trailing half-fromed escape sequence (no alloc.)
-		s = s[:lastNonSpaceIndex(s)+1]               // drop trailing spaces (no alloc.)
-		s = append(s, '…')                           // append shrinkage indicator (no alloc.)
-		title = string(s)                            // alloc.
+		s := []rune(title)             // alloc.
+		s = s[:maxlen]                 // shrink (no alloc.)
+		s = s[:lastNonSpaceIndex(s)+1] // drop trailing spaces (no alloc.)
+		s = append(s, '…')             // append shrinkage indicator (no alloc.)
+		title = string(s)              // alloc.
 	}
 
-	return title
+	return escTitle(title)
 }
 
 func buildReport() {
-	REPORT = cutTitle(TITLE, cnf.MaxLen-MODE_LEN)
-
-	if MODE != "" {
-		REPORT = MODE + REPORT
+	switch MODE {
+	case "":
+		REPORT = trimTitle(TITLE, cnf.MaxLen)
+	default:
+		REPORT = MODE + trimTitle(TITLE, cnf.MaxLen-MODE_LEN)
 	}
 }
 
