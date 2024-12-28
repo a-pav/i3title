@@ -27,7 +27,7 @@ func main() {
 func reporter(lineCh chan []byte, titleCh, modeCh chan string) {
 	var (
 		LINE     []byte // LINE comes from `i3status` stdout.
-		TITLE    string // TITLE is current windows title.
+		TITLE    string // TITLE is current window title.
 		MODE     string // MODE is the current i3 mode.
 		MODE_LEN int    // MODE_LEN is the visible length of current i3 mode.
 		REPORT   string // REPORT is what goes into LINE before printing.
@@ -45,7 +45,7 @@ func reporter(lineCh chan []byte, titleCh, modeCh chan string) {
 	for {
 		select {
 		case LINE = <-lineCh:
-			// typical.
+			// Just print.
 		case TITLE = <-titleCh:
 			newReport()
 		case MODE = <-modeCh:
@@ -53,22 +53,17 @@ func reporter(lineCh chan []byte, titleCh, modeCh chan string) {
 			case "default":
 				MODE_LEN = 0
 			default:
-				MODE_LEN = len(MODE) + MODE_SEP_LEN
-				MODE = fmt.Sprintf(
-					"<span color='red' font='italic bold'>%s</span>%s",
-					MODE, MODE_SEP,
-				)
+				MODE_LEN = len(MODE) + cnf.ModeStyleLen
+				MODE = fmt.Sprintf(cnf.ModeStyle, MODE)
 			}
 			newReport()
 		}
-
-		// do print
+		// Do print.
 		fmt.Fprintf(os.Stdout, "%s\n",
 			// Read-only `[]byte(string)` convertions are optimized by compiler:
 			// https://github.com/golang/go/issues/2205 (commits=c8adb30,925d2fb,d63c88d).
 			bytes.Replace(LINE, []byte(cnf.PH), []byte(REPORT), 1),
 		)
-
 	}
 }
 

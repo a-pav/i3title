@@ -1,8 +1,9 @@
 {
-    "debug": true,
     "buffer_size": 1500,
     "placeholder": "ttlph",
     "max_length": 96,
+    "mode_style": "<span color='red' font='italic bold'>%s</span> <span color='#666666'>|</span> ",
+    "mode_style_length": 3,
     // TODO: Remove: After commit 57ea2c088 there might be no need to delay.
     "start_delay": 2,
     "old_new": [

@@ -4,19 +4,16 @@ import (
 	"strings"
 )
 
-const (
-	MODE_SEP     = " <span color='#666666'>|</span> "
-	MODE_SEP_LEN = 3
-)
-
 var (
 	// cnf is the Config struct.
 	cnf = struct {
-		PH         string   `json:"placeholder"`
-		OldNew     []string `json:"old_new"`
-		MaxLen     int      `json:"max_length"`
-		BufSize    uint16   `json:"buffer_size"` // max: 65535, 64KB
-		StartDelay uint8    `json:"start_delay"` // max: 255
+		PH           string   `json:"placeholder"`
+		ModeStyle    string   `json:"mode_style"`
+		ModeStyleLen int      `json:"mode_style_length"`
+		OldNew       []string `json:"old_new"`
+		MaxLen       int      `json:"max_length"`
+		BufSize      uint16   `json:"buffer_size"` // max: 65535, 64KB
+		StartDelay   uint8    `json:"start_delay"` // max: 255
 
 		Replacer *strings.Replacer
 	}{}
