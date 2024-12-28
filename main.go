@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"go.i3wm.org/i3/v4"
 )
@@ -28,8 +29,8 @@ func reporter(lineCh chan []byte, titleCh, modeCh chan string) {
 	var (
 		LINE     []byte // LINE comes from `i3status` stdout.
 		TITLE    string // TITLE is current window title.
-		MODE     string // MODE is the current i3 mode.
-		MODE_LEN int    // MODE_LEN is the visible length of current i3 mode.
+		MODE     string // MODE is current i3 mode.
+		MODE_LEN int    // MODE_LEN is visible length of current i3 mode.
 		REPORT   string // REPORT is what goes into LINE before printing.
 	)
 
@@ -78,16 +79,15 @@ func moder(modeCh chan string) {
 }
 
 func titler(titleCh chan string) {
-	// TODO: Remove: After commit 57ea2c088 there might be no need to delay.
-	// if cnf.StartDelay > 0 {
-	// 	// i3 creates too many change-of-title events in a row while system and/or
-	// 	// i3 itself is initially starting. To avoid errors, it's best not to
-	// 	// subscribe to the events too early.
-	// 	REPORT = fmt.Sprintf("<i>i3title start delay: %ds</i>", cnf.StartDelay)
-	// 	time.Sleep(time.Duration(cnf.StartDelay) * time.Second)
-	// 	// Sudden empty title shuold indicate that normal operation has started.
-	// 	REPORT = ""
-	// }
+	if cnf.StartDelay > 0 {
+		// i3 creates too many change-of-title events in a row while system and/or
+		// i3 itself is initially starting. To avoid errors, it's best not to
+		// subscribe to the events too early.
+		titleCh <- fmt.Sprintf("i3title start delay: %ds", cnf.StartDelay)
+		time.Sleep(time.Duration(cnf.StartDelay) * time.Second)
+		// Sudden empty title shuold indicate that normal operation has started.
+		titleCh <- ""
+	}
 
 	windowER := i3.Subscribe(i3.WindowEventType)
 
