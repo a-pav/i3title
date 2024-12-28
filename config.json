@@ -2,7 +2,7 @@
     "debug": true,
     "buffer_size": 1500,
     "placeholder": "ttlph",
-    "max_length": 91,
+    "max_length": 96,
     // TODO: Remove: After commit 57ea2c088 there might be no need to delay.
     "start_delay": 2,
     "old_new": [
@@ -22,12 +22,14 @@
         "&#34;", // "&#34;" is shorter than "&quot;".
 
         "\\",
-        "&#92;", // "&#92;" is shorter than "&Backslash;", or anything else.
+        "&#92;" // "&#92;" is shorter than "&Backslash;", or anything else.
 
-        // Remove trailing title of firefox.
-        " — Firefox Developer Edition",
-        "",
-        " — Mozilla Firefox",
-        ""
+        // Remove trailing title of Firefox.
+        // " — Firefox Developer Edition",
+        // "",
+        // " — Mozilla Firefox",
+        // "",
+        // " — 🛆",
+        // ""
     ]
 }
