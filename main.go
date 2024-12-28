@@ -6,58 +6,114 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	"go.i3wm.org/i3/v4"
 )
 
 func main() {
-	go readLine()
-	go readTitle()
-	go readMode()
+	lineC := make(chan []byte)
+	go liner(lineC)
 
-	select {} // Block forever.
+	titleC := make(chan string)
+	go titler(titleC)
+
+	modeC := make(chan string)
+	go moder(modeC)
+
+	// select {} // Block forever.
+	reporter(lineC, titleC, modeC)
 }
 
-func readMode() {
+func reporter(lineC chan []byte, titleC, modeC chan string) {
+	var (
+		_LINE     []byte
+		_TITLE    string
+		_MODE     string
+		_MODE_LEN int
+		_REPORT   string
+	)
+
+	newReport := func() {
+		switch _MODE_LEN {
+		case 0:
+			_REPORT = trimTitle(_TITLE, cnf.MaxLen)
+		default:
+			_REPORT = _MODE + trimTitle(_TITLE, cnf.MaxLen-_MODE_LEN)
+		}
+	}
+
+	for {
+		select {
+		case _LINE = <-lineC:
+			// typical.
+		case _TITLE = <-titleC:
+			newReport()
+		case _MODE = <-modeC:
+			switch _MODE {
+			case "default":
+				// _MODE = ""
+				_MODE_LEN = 0
+			default:
+				// == len(<mode-name>) + len(visible_sep_chars)
+				_MODE_LEN = len(_MODE) + MODE_SEP_LEN
+				_MODE = fmt.Sprintf(
+					"<span color='red' font='italic bold'>%s</span>%s",
+					_MODE, MODE_SEP,
+				)
+			}
+			newReport()
+		}
+
+		// do print
+		fmt.Fprintf(os.Stdout, "%s\n",
+			// Read-only `[]byte(string)` convertions are optimized by compiler:
+			// https://github.com/golang/go/issues/2205 (commits=c8adb30,925d2fb,d63c88d).
+			bytes.Replace(_LINE, []byte(cnf.PH), []byte(_REPORT), 1),
+		)
+
+	}
+}
+
+func moder(modeC chan string) {
 	modeER := i3.Subscribe(i3.ModeEventType)
 
 	for modeER.Next() {
-		e := modeER.Event().(*i3.ModeEvent)
-		switch e.Change {
-		case "default":
-			MODE = ""
-			MODE_LEN = 0
-		default:
-			switch e.PangoMarkup {
-			case false:
-				MODE = fmt.Sprintf(
-					"<span color='red' font='italic bold'>%s</span>%s",
-					e.Change, MODE_SEP,
-				)
-			default:
-				MODE = fmt.Sprintf("%s%s", e.Change, MODE_SEP)
-			}
-			// == len(<mode-name>) + len(visible_sep_chars)
-			MODE_LEN = len(e.Change) + MODE_SEP_LEN
-		}
-		buildReport()
-		printline()
+		// e := modeER.Event().(*i3.ModeEvent)
+		// switch e.Change {
+		// case "default":
+		// 	MODE = ""
+		// 	MODE_LEN = 0
+		// default:
+		// 	switch e.PangoMarkup {
+		// 	case false:
+		// 		MODE = fmt.Sprintf(
+		// 			"<span color='red' font='italic bold'>%s</span>%s",
+		// 			e.Change, MODE_SEP,
+		// 		)
+		// 	default:
+		// 		MODE = fmt.Sprintf("%s%s", e.Change, MODE_SEP)
+		// 	}
+		// 	// == len(<mode-name>) + len(visible_sep_chars)
+		// 	MODE_LEN = len(e.Change) + MODE_SEP_LEN
+		// }
+		modeC <- modeER.Event().(*i3.ModeEvent).Change
+		// buildReport()
+		// printline()
 	}
 
 	log.Fatal("ending program:", modeER.Close())
 }
 
-func readTitle() {
+func titler(titleC chan string) {
 	// TODO: Remove: After commit 57ea2c088 there might be no need to delay.
 	if cnf.StartDelay > 0 {
-		// i3 creates too many change-of-title events in a row while system and/or
-		// i3 itself is initially starting. To avoid errors, it's best not to
-		// subscribe to the events too early.
-		REPORT = fmt.Sprintf("<i>i3title start delay: %ds</i>", cnf.StartDelay)
-		time.Sleep(time.Duration(cnf.StartDelay) * time.Second)
-		// Sudden empty title shuold indicate that normal operation has started.
-		REPORT = ""
+		// // i3 creates too many change-of-title events in a row while system and/or
+		// // i3 itself is initially starting. To avoid errors, it's best not to
+		// // subscribe to the events too early.
+		// REPORT = fmt.Sprintf("<i>i3title start delay: %ds</i>", cnf.StartDelay)
+		// time.Sleep(time.Duration(cnf.StartDelay) * time.Second)
+		// // Sudden empty title shuold indicate that normal operation has started.
+		// REPORT = ""
 	}
 
 	windowER := i3.Subscribe(i3.WindowEventType)
@@ -70,17 +126,18 @@ func readTitle() {
 			continue
 		}
 
-		if t := e.Container.WindowProperties.Title; t != "" && TITLE != t {
-			TITLE = t
-			buildReport()
-			printline()
-		}
+		// if t := e.Container.WindowProperties.Title; t != "" && TITLE != t {
+		// 	// TITLE = t
+		titleC <- e.Container.WindowProperties.Title
+		// 	buildReport()
+		// 	printline()
+		// }
 	}
 
 	log.Fatal("ending program:", windowER.Close())
 }
 
-func readLine() {
+func liner(lineC chan []byte) {
 	// DEBUG
 	// cmd := exec.Command("i3status")
 	// stdout, err := cmd.StdoutPipe()
@@ -101,8 +158,9 @@ func readLine() {
 	scanner.Buffer(make([]byte, 0, cnf.BufSize), 0)
 
 	for scanner.Scan() {
-		LINE = scanner.Bytes()
-		printline()
+		// LINE = scanner.Bytes()
+		// printline()
+		lineC <- scanner.Bytes()
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -132,20 +190,20 @@ func trimTitle(title string, maxlen int) string {
 	return replacer(title)
 }
 
-func buildReport() {
-	switch MODE {
-	case "":
-		REPORT = trimTitle(TITLE, cnf.MaxLen)
-	default:
-		REPORT = MODE + trimTitle(TITLE, cnf.MaxLen-MODE_LEN)
-	}
-}
+// func buildReport() {
+// 	switch MODE {
+// 	case "":
+// 		REPORT = trimTitle(TITLE, cnf.MaxLen)
+// 	default:
+// 		REPORT = MODE + trimTitle(TITLE, cnf.MaxLen-MODE_LEN)
+// 	}
+// }
 
-// printline inserts `REPORT` into `LINE` (incoming stdin) then prints it to stdout.
-func printline() {
-	fmt.Fprintf(os.Stdout, "%s\n",
-		// Read-only `[]byte(string)` convertions are optimized by compiler:
-		// https://github.com/golang/go/issues/2205 (commits=c8adb30,925d2fb,d63c88d).
-		bytes.Replace(LINE, []byte(cnf.PH), []byte(REPORT), 1),
-	)
-}
+// // printline inserts `REPORT` into `LINE` (incoming stdin) then prints it to stdout.
+// func printline() {
+// 	fmt.Fprintf(os.Stdout, "%s\n",
+// 		// Read-only `[]byte(string)` convertions are optimized by compiler:
+// 		// https://github.com/golang/go/issues/2205 (commits=c8adb30,925d2fb,d63c88d).
+// 		bytes.Replace(LINE, []byte(cnf.PH), []byte(REPORT), 1),
+// 	)
+// }

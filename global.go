@@ -14,12 +14,12 @@ const (
 // Globally shared variables.
 // For the sake of this program, these should work fine with no mutex mechanism in place.
 var (
-	LINE     []byte
-	TITLE    string
-	MODE     string
-	MODE_LEN int
-	// REPORT is inserted into LINE.
-	REPORT string
+	// LINE     []byte
+	// TITLE    string
+	// MODE     string
+	// MODE_LEN int
+	// // REPORT is inserted into LINE.
+	// REPORT string
 
 	// cnf is the Config struct.
 	cnf = struct {
