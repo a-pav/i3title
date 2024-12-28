@@ -11,20 +11,20 @@ import (
 )
 
 func main() {
-	lineC := make(chan []byte)
-	go liner(lineC)
+	lineCh := make(chan []byte)
+	go liner(lineCh)
 
-	titleC := make(chan string)
-	go titler(titleC)
+	titleCh := make(chan string)
+	go titler(titleCh)
 
-	modeC := make(chan string)
-	go moder(modeC)
+	modeCh := make(chan string)
+	go moder(modeCh)
 
 	// select {} // Block forever.
-	reporter(lineC, titleC, modeC)
+	reporter(lineCh, titleCh, modeCh)
 }
 
-func reporter(lineC chan []byte, titleC, modeC chan string) {
+func reporter(lineCh chan []byte, titleCh, modeCh chan string) {
 	var (
 		_LINE     []byte
 		_TITLE    string
@@ -44,11 +44,11 @@ func reporter(lineC chan []byte, titleC, modeC chan string) {
 
 	for {
 		select {
-		case _LINE = <-lineC:
+		case _LINE = <-lineCh:
 			// typical.
-		case _TITLE = <-titleC:
+		case _TITLE = <-titleCh:
 			newReport()
-		case _MODE = <-modeC:
+		case _MODE = <-modeCh:
 			switch _MODE {
 			case "default":
 				// _MODE = ""
