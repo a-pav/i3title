@@ -26,39 +26,39 @@ func main() {
 
 func reporter(lineCh chan []byte, titleCh, modeCh chan string) {
 	var (
-		_LINE     []byte
-		_TITLE    string
-		_MODE     string
-		_MODE_LEN int
-		_REPORT   string
+		LINE     []byte
+		TITLE    string
+		MODE     string
+		MODE_LEN int
+		REPORT   string
 	)
 
 	newReport := func() {
-		switch _MODE_LEN {
+		switch MODE_LEN {
 		case 0:
-			_REPORT = trimTitle(_TITLE, cnf.MaxLen)
+			REPORT = trimTitle(TITLE, cnf.MaxLen)
 		default:
-			_REPORT = _MODE + trimTitle(_TITLE, cnf.MaxLen-_MODE_LEN)
+			REPORT = MODE + trimTitle(TITLE, cnf.MaxLen-MODE_LEN)
 		}
 	}
 
 	for {
 		select {
-		case _LINE = <-lineCh:
+		case LINE = <-lineCh:
 			// typical.
-		case _TITLE = <-titleCh:
+		case TITLE = <-titleCh:
 			newReport()
-		case _MODE = <-modeCh:
-			switch _MODE {
+		case MODE = <-modeCh:
+			switch MODE {
 			case "default":
 				// _MODE = ""
-				_MODE_LEN = 0
+				MODE_LEN = 0
 			default:
 				// == len(<mode-name>) + len(visible_sep_chars)
-				_MODE_LEN = len(_MODE) + MODE_SEP_LEN
-				_MODE = fmt.Sprintf(
+				MODE_LEN = len(MODE) + MODE_SEP_LEN
+				MODE = fmt.Sprintf(
 					"<span color='red' font='italic bold'>%s</span>%s",
-					_MODE, MODE_SEP,
+					MODE, MODE_SEP,
 				)
 			}
 			newReport()
@@ -68,7 +68,7 @@ func reporter(lineCh chan []byte, titleCh, modeCh chan string) {
 		fmt.Fprintf(os.Stdout, "%s\n",
 			// Read-only `[]byte(string)` convertions are optimized by compiler:
 			// https://github.com/golang/go/issues/2205 (commits=c8adb30,925d2fb,d63c88d).
-			bytes.Replace(_LINE, []byte(cnf.PH), []byte(_REPORT), 1),
+			bytes.Replace(LINE, []byte(cnf.PH), []byte(REPORT), 1),
 		)
 
 	}
