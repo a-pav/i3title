@@ -21,8 +21,7 @@ var (
 		StartDelay uint8    `json:"start_delay"` // max: 255
 		Debug      bool     `json:"debug"`
 
-		Replacer  *strings.Replacer
-		MaxEscLen int
+		Replacer *strings.Replacer
 	}{}
 )
 
