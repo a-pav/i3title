@@ -30,16 +30,14 @@ var (
 // everything from /home/$USER.
 func getwd() string { return filepath.Dir(os.Args[0]) }
 
-// lastNonSpaceIndex returns the index of last non-space character in s.
-func lastNonSpaceIndex(s []rune) int {
+// lastNonspaceIndex returns the index of last non-space character in s.
+func lastNonspaceIndex(s []rune) int {
 	for i := len(s) - 1; i >= 0; i-- {
 		if s[i] != ' ' {
 			return i
 		}
 	}
-
-	// All space!
-	return 0
+	return 0 // All were space.
 }
 
 // func string2Bytes(s string) []byte {

@@ -108,7 +108,7 @@ func titler(titleCh chan string) {
 }
 
 func liner(lineCh chan []byte) {
-	// DEBUG
+	//// DEBUG ////////////////////////////////////
 	// cmd := exec.Command("i3status")
 	// stdout, err := cmd.StdoutPipe()
 	// if err != nil {
@@ -119,7 +119,7 @@ func liner(lineCh chan []byte) {
 	// }
 	// defer cmd.Process.Release()
 	// scanner := bufio.NewScanner(stdout)
-
+	//// DEBUG ////////////////////////////////////
 	scanner := bufio.NewScanner(os.Stdin)
 	if err := scanner.Err(); err != nil {
 		log.Fatal("scanner failed to init: ", err)
@@ -150,7 +150,7 @@ func trimTitle(title string, maxlen int) string {
 		// than once, does not affect performance in any meaningful way.
 		s := []rune(title)             // alloc.
 		s = s[:maxlen]                 // shrink (no alloc.)
-		s = s[:lastNonSpaceIndex(s)+1] // drop trailing spaces (no alloc.)
+		s = s[:lastNonspaceIndex(s)+1] // drop trailing spaces (no alloc.)
 		s = append(s, '…')             // append shrinkage indicator (no alloc.)
 		title = string(s)              // alloc.
 	}
