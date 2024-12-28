@@ -26,11 +26,11 @@ func main() {
 
 func reporter(lineCh chan []byte, titleCh, modeCh chan string) {
 	var (
-		LINE     []byte
-		TITLE    string
-		MODE     string
-		MODE_LEN int
-		REPORT   string
+		LINE     []byte // LINE comes from `i3status` stdout.
+		TITLE    string // TITLE is current windows title.
+		MODE     string // MODE is the current i3 mode.
+		MODE_LEN int    // MODE_LEN is the visible length of current i3 mode.
+		REPORT   string // REPORT is what goes into LINE before printing.
 	)
 
 	newReport := func() {
@@ -51,10 +51,8 @@ func reporter(lineCh chan []byte, titleCh, modeCh chan string) {
 		case MODE = <-modeCh:
 			switch MODE {
 			case "default":
-				// _MODE = ""
 				MODE_LEN = 0
 			default:
-				// == len(<mode-name>) + len(visible_sep_chars)
 				MODE_LEN = len(MODE) + MODE_SEP_LEN
 				MODE = fmt.Sprintf(
 					"<span color='red' font='italic bold'>%s</span>%s",
