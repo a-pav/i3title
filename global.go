@@ -30,41 +30,6 @@ var (
 // everything from /home/$USER.
 func getwd() string { return filepath.Dir(os.Args[0]) }
 
-// lastNonEscapeIndex checks if s ends within a escape sequence. If so, it
-// returns the index of escape sequece's beginning. Otherwise len(s) is returned.
-// width determines how far from s's end is examined.
-func lastNonEscapeIndex(s []rune, width int) int {
-	var (
-		start      = len(s) - width
-		end        = len(s)
-		iSemicolon = -1
-		iAmpersand = -1
-	)
-
-	for i := end - 1; i >= start; i-- {
-		switch {
-		case iAmpersand < 0 && s[i] == '&':
-			iAmpersand = i
-		case iSemicolon < 0 && s[i] == ';':
-			iSemicolon = i
-		}
-	}
-
-	switch {
-	case iAmpersand < iSemicolon:
-		// There's a fully formed escape sequence inside width with both `&` and
-		// `;` (like: `&escape;`) Or, there's a `;` but no `&`. (like: `cape;`).
-		return end
-	case iAmpersand > 0:
-		// There's a half-formed escape sequence inside width with only `&` and
-		// no `;` (like: `&esca`)
-		return iAmpersand
-	}
-
-	// No escape sequence was detected inside width.
-	return end
-}
-
 // lastNonSpaceIndex returns the index of last non-space character in s.
 func lastNonSpaceIndex(s []rune) int {
 	for i := len(s) - 1; i >= 0; i-- {
