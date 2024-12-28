@@ -20,10 +20,10 @@ func main() {
 }
 
 func readMode() {
-	modeRecv := i3.Subscribe(i3.ModeEventType)
+	modeER := i3.Subscribe(i3.ModeEventType)
 
-	for modeRecv.Next() {
-		e := modeRecv.Event().(*i3.ModeEvent)
+	for modeER.Next() {
+		e := modeER.Event().(*i3.ModeEvent)
 		switch e.Change {
 		case "default":
 			MODE = ""
@@ -45,7 +45,7 @@ func readMode() {
 		printline()
 	}
 
-	log.Fatal("ending program:", modeRecv.Close())
+	log.Fatal("ending program:", modeER.Close())
 }
 
 func readTitle() {
@@ -60,10 +60,10 @@ func readTitle() {
 		REPORT = ""
 	}
 
-	winRecv := i3.Subscribe(i3.WindowEventType)
+	windowER := i3.Subscribe(i3.WindowEventType)
 
-	for winRecv.Next() {
-		e := winRecv.Event().(*i3.WindowEvent)
+	for windowER.Next() {
+		e := windowER.Event().(*i3.WindowEvent)
 		switch e.Change {
 		case "title", "focus":
 		default:
@@ -77,7 +77,7 @@ func readTitle() {
 		}
 	}
 
-	log.Fatal("ending program:", winRecv.Close())
+	log.Fatal("ending program:", windowER.Close())
 }
 
 func readLine() {
@@ -110,7 +110,7 @@ func readLine() {
 	}
 }
 
-func escTitle(title string) string {
+func replacer(title string) string {
 	return cnf.Replacer.Replace(title)
 }
 
@@ -129,7 +129,7 @@ func trimTitle(title string, maxlen int) string {
 		title = string(s)              // alloc.
 	}
 
-	return escTitle(title)
+	return replacer(title)
 }
 
 func buildReport() {
