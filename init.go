@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -15,6 +16,11 @@ func init() {
 
 	initConfig(getwd())
 }
+
+// getwd returns the application's working directory.
+// Using os.Args[0] is the surest way to get the actual CWD. i3 seems to run
+// everything from /home/$USER.
+func getwd() string { return filepath.Dir(os.Args[0]) }
 
 func initConfig(cwd string) {
 	readConfigFile(cwd)

@@ -108,7 +108,7 @@ func titler(titleCh chan string) {
 }
 
 func liner(lineCh chan []byte) {
-	//// DEBUG ////////////////////////////////////
+	// // DEBUG ////////////////////////////////////
 	// cmd := exec.Command("i3status")
 	// stdout, err := cmd.StdoutPipe()
 	// if err != nil {
@@ -119,7 +119,7 @@ func liner(lineCh chan []byte) {
 	// }
 	// defer cmd.Process.Release()
 	// scanner := bufio.NewScanner(stdout)
-	//// DEBUG ////////////////////////////////////
+	// // DEBUG ////////////////////////////////////
 	scanner := bufio.NewScanner(os.Stdin)
 	if err := scanner.Err(); err != nil {
 		log.Fatal("scanner failed to init: ", err)

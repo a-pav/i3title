@@ -1,8 +1,6 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -19,16 +17,10 @@ var (
 		MaxLen     int      `json:"max_length"`
 		BufSize    uint16   `json:"buffer_size"` // max: 65535, 64KB
 		StartDelay uint8    `json:"start_delay"` // max: 255
-		Debug      bool     `json:"debug"`
 
 		Replacer *strings.Replacer
 	}{}
 )
-
-// getwd returns the application's working directory.
-// Using os.Args[0] is the surest way to get the actual CWD. i3 seems to run
-// everything from /home/$USER.
-func getwd() string { return filepath.Dir(os.Args[0]) }
 
 // lastNonspaceIndex returns the index of last non-space character in s.
 func lastNonspaceIndex(s []rune) int {
