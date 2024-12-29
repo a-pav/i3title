@@ -79,16 +79,6 @@ func moder(modeCh chan string) {
 }
 
 func titler(titleCh chan string) {
-	if cnf.StartDelay > 0 {
-		// i3 creates too many change-of-title events in a row while system and/or
-		// i3 itself is initially starting. To avoid errors, it's best not to
-		// subscribe to the events too early.
-		titleCh <- fmt.Sprintf("i3title start delay: %ds", cnf.StartDelay)
-		time.Sleep(time.Duration(cnf.StartDelay) * time.Second)
-		// Sudden empty title shuold indicate that normal operation has started.
-		titleCh <- ""
-	}
-
 	windowER := i3.Subscribe(i3.WindowEventType)
 
 	for windowER.Next() {
