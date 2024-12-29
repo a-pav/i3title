@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# Check available dependency updates:
+# 	go list -m -u all
+
 deploy_local() {
 	go build -ldflags="-s -w" -o i3title \
 		&& killall -q i3title
