@@ -6,23 +6,26 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	"go.i3wm.org/i3/v4"
 )
 
 func main() {
-	lineCh := make(chan []byte)
-	go liner(lineCh)
+	var (
+		startSig = make(chan struct{})
+		lineCh   = make(chan []byte)
+		titleCh  = make(chan string)
+		modeCh   = make(chan string)
+	)
+	go reporter(lineCh, titleCh, modeCh)
 
-	titleCh := make(chan string)
+	go liner(lineCh, startSig)
+	<-startSig
+
 	go titler(titleCh)
-
-	modeCh := make(chan string)
 	go moder(modeCh)
 
-	// select {} // Block forever.
-	reporter(lineCh, titleCh, modeCh)
+	select {} // Block forever.
 }
 
 func reporter(lineCh chan []byte, titleCh, modeCh chan string) {
@@ -33,7 +36,6 @@ func reporter(lineCh chan []byte, titleCh, modeCh chan string) {
 		MODE_LEN int    // MODE_LEN is visible length of current i3 mode.
 		REPORT   string // REPORT is what goes into LINE before printing.
 	)
-
 	newReport := func() {
 		switch MODE_LEN {
 		case 0:
@@ -92,7 +94,7 @@ func titler(titleCh chan string) {
 	log.Fatal("ending program:", windowER.Close())
 }
 
-func liner(lineCh chan []byte) {
+func liner(lineCh chan []byte, startSig chan<- struct{}) {
 	// // DEBUG ////////////////////////////////////
 	// cmd := exec.Command("i3status")
 	// stdout, err := cmd.StdoutPipe()
@@ -111,6 +113,17 @@ func liner(lineCh chan []byte) {
 	}
 	// Set maximum buffer size.
 	scanner.Buffer(make([]byte, 0, cnf.BufSize), 0)
+
+	// The start signal is sent after 4 lines of `i3status` output, which are:
+	// 		{"version":1}
+	// 		[
+	// 		[{"name": ... ]
+	// 		,[{"name": ... ]
+	for range 4 {
+		scanner.Scan()
+		lineCh <- scanner.Bytes()
+	}
+	close(startSig) // non-blocking op.
 
 	for scanner.Scan() {
 		lineCh <- scanner.Bytes()
