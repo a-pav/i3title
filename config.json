@@ -4,8 +4,6 @@
     "max_length": 96,
     "mode_style": "<span color='red' font='italic bold'>%s</span> <span color='#666666'>|</span> ",
     "mode_style_length": 3,
-    // TODO: Remove: After commit 57ea2c088 there might be no need to delay.
-    "start_delay": 2,
     "old_new": [
         // To test, run document.title = `  ~!@#$%^&*()_+-=[]{}|\;:'"<>?,./\`` in browser console.
         // https://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references
@@ -30,7 +28,5 @@
         // "",
         // " — Mozilla Firefox",
         // "",
-        // " — 🛆",
-        // ""
     ]
 }
