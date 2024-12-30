@@ -12,16 +12,13 @@ import (
 
 func main() {
 	var (
-		startSig = make(chan struct{})
-		lineCh   = make(chan []byte)
-		titleCh  = make(chan string)
-		modeCh   = make(chan string)
+		lineCh  = make(chan []byte)
+		titleCh = make(chan string)
+		modeCh  = make(chan string)
 	)
 	go reporter(lineCh, titleCh, modeCh)
 
-	go liner(lineCh, startSig)
-	<-startSig
-
+	liner(lineCh)
 	go titler(titleCh)
 	go moder(modeCh)
 
@@ -94,7 +91,7 @@ func titler(titleCh chan string) {
 	log.Fatal("ending program:", windowER.Close())
 }
 
-func liner(lineCh chan []byte, startSig chan<- struct{}) {
+func liner(lineCh chan<- []byte) {
 	// // DEBUG ////////////////////////////////////
 	// cmd := exec.Command("i3status")
 	// stdout, err := cmd.StdoutPipe()
@@ -114,7 +111,8 @@ func liner(lineCh chan []byte, startSig chan<- struct{}) {
 	// Set maximum buffer size.
 	scanner.Buffer(make([]byte, 0, cnf.BufSize), 0)
 
-	// The start signal is sent after 4 lines of `i3status` output, which are:
+	// Normal op starts after first 4 lines of output from `i3status`.
+	// These look like:
 	// 		{"version":1}
 	// 		[
 	// 		[{"name": ... ]
@@ -123,15 +121,16 @@ func liner(lineCh chan []byte, startSig chan<- struct{}) {
 		scanner.Scan()
 		lineCh <- scanner.Bytes()
 	}
-	close(startSig) // non-blocking op.
 
-	for scanner.Scan() {
-		lineCh <- scanner.Bytes()
-	}
+	go func() {
+		for scanner.Scan() {
+			lineCh <- scanner.Bytes()
+		}
 
-	if err := scanner.Err(); err != nil {
-		log.Fatal("scanner error:", err)
-	}
+		if err := scanner.Err(); err != nil {
+			log.Fatal("scanner error:", err)
+		}
+	}()
 }
 
 func replacer(title string) string {
