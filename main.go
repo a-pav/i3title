@@ -25,7 +25,7 @@ func main() {
 	select {} // Block forever.
 }
 
-func reporter(lineCh chan []byte, titleCh, modeCh chan string) {
+func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 	var (
 		LINE     []byte // LINE comes from `i3status` stdout.
 		TITLE    string // TITLE is current window title.
@@ -67,7 +67,7 @@ func reporter(lineCh chan []byte, titleCh, modeCh chan string) {
 	}
 }
 
-func moder(modeCh chan string) {
+func moder(modeCh chan<- string) {
 	modeER := i3.Subscribe(i3.ModeEventType)
 
 	for modeER.Next() {
@@ -77,7 +77,7 @@ func moder(modeCh chan string) {
 	log.Fatal("ending program:", modeER.Close())
 }
 
-func titler(titleCh chan string) {
+func titler(titleCh chan<- string) {
 	windowER := i3.Subscribe(i3.WindowEventType)
 
 	for windowER.Next() {
