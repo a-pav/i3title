@@ -27,11 +27,12 @@ func main() {
 
 func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 	var (
-		LINE     []byte // LINE comes from `i3status` stdout.
-		TITLE    string // TITLE is current window title.
-		MODE     string // MODE is current i3 mode.
-		MODE_LEN int    // MODE_LEN is visible length of current i3 mode.
-		REPORT   string // REPORT is what goes into LINE before printing.
+		line0    []byte                      // Incoming line from `i3status` stdout.
+		line1    = make([]byte, cnf.BufSize) // Outgoing line with report in it.
+		TITLE    string                      // TITLE is current window title.
+		MODE     string                      // MODE is current i3 mode.
+		MODE_LEN int                         // MODE_LEN is visible length of current i3 mode.
+		REPORT   string                      // REPORT is what goes into LINE before printing.
 	)
 	newReport := func() {
 		switch MODE_LEN {
@@ -41,10 +42,29 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 			REPORT = MODE + trimTitle(TITLE, cnf.MaxLen-MODE_LEN)
 		}
 	}
+	doPrint := func() {
+		i := cnf.PHIndex
+		if i <= 0 {
+			i = bytes.Index(line0, []byte(cnf.PH))
+		}
+		copy(line1[0:], line0[:i])
+		copy(line1[i:], REPORT)
+		copy(line1[i+len(REPORT):], line0[i+len(cnf.PH):])
+
+		cut := len(line0) + len(REPORT) - len(cnf.PH)
+		out := line1[:cut]
+
+		fmt.Fprintf(os.Stdout, "%s\n", out)
+	}
+
+	// The first two lines don't contain the placeholder and are printed verbatim.
+	for range 2 {
+		fmt.Fprintf(os.Stdout, "%s\n", <-lineCh)
+	}
 
 	for {
 		select {
-		case LINE = <-lineCh:
+		case line0 = <-lineCh:
 			// Just print.
 		case TITLE = <-titleCh:
 			newReport()
@@ -52,18 +72,15 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 			switch MODE {
 			case "default":
 				MODE_LEN = 0
+				MODE = ""
 			default:
 				MODE_LEN = len(MODE) + cnf.ModeStyleLen
 				MODE = fmt.Sprintf(cnf.ModeStyle, MODE)
 			}
 			newReport()
 		}
-		// Do print.
-		fmt.Fprintf(os.Stdout, "%s\n",
-			// Read-only `[]byte(string)` convertions are optimized by compiler:
-			// https://github.com/golang/go/issues/2205 (commits=c8adb30,925d2fb,d63c88d).
-			bytes.Replace(LINE, []byte(cnf.PH), []byte(REPORT), 1),
-		)
+
+		doPrint()
 	}
 }
 

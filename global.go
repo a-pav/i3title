@@ -8,6 +8,7 @@ var (
 	// cnf is the Config struct.
 	cnf = struct {
 		PH           string   `json:"placeholder"`
+		PHIndex      int      `json:"placeholder_index"`
 		ModeStyle    string   `json:"mode_style"`
 		ModeStyleLen int      `json:"mode_style_length"`
 		OldNew       []string `json:"old_new"`
@@ -28,6 +29,8 @@ func lastNonspaceIndex(s []rune) int {
 	return 0 // All were space.
 }
 
+// Read-only `[]byte(string)` convertions are optimized by compiler:
+// https://github.com/golang/go/issues/2205 (commits=c8adb30,925d2fb,d63c88d).
 // func string2Bytes(s string) []byte {
 // 	if len(s) == 0 {
 // 		return nil
