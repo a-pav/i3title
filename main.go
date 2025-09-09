@@ -35,6 +35,17 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 		mode      string                         // Current i3 mode.
 		modeWidth int                            // Width of current i3 mode .
 	)
+	trimTitle := func(max int) string {
+		// NOTE: `len([]rune(string))` pattern is optimized by compiler.
+		if len([]rune(title)) > max {
+			s := []rune(title)             // alloc.
+			s = s[:max]                    // shrink (no alloc.)
+			s = s[:lastNonspaceIndex(s)+1] // drop trailing spaces (no alloc.)
+			s[max-1] = '…'                 // append shrinkage indicator (no alloc.)
+			return replacer(string(s))     // alloc.
+		}
+		return replacer(title)
+	}
 	newMode := func() {
 		switch mode {
 		case "default":
@@ -49,10 +60,10 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 		c := 0
 		switch modeWidth {
 		case 0:
-			c += copy(report[0:], trimTitle(title, cnf.MaxWidth))
+			c += copy(report[0:], trimTitle(cnf.MaxWidth))
 		default:
 			c += copy(report[0:], mode)
-			c += copy(report[c:], trimTitle(title, cnf.MaxWidth-modeWidth))
+			c += copy(report[c:], trimTitle(cnf.MaxWidth-modeWidth))
 		}
 		reportEnd = c
 	}
@@ -156,23 +167,6 @@ func liner(lineCh chan<- []byte) {
 }
 
 func replacer(title string) string {
+	// This will be inlined.
 	return cnf.Replacer.Replace(title)
-}
-
-// trimTitle cuts title at maxlen, ensuring that it doesn't end with white space,
-// and runs the replacer on it.
-func trimTitle(title string, maxlen int) string {
-	// Note: `len([]rune(string))` pattern is optimized by compiler.
-	if len([]rune(title)) > maxlen {
-		// This may look cumbersome, but it's clear and easy to maintain.
-		// And as shown by the benchmarks, slicing a slice multiple times rather
-		// than once, does not affect performance in any meaningful way.
-		s := []rune(title)             // alloc.
-		s = s[:maxlen]                 // shrink (no alloc.)
-		s = s[:lastNonspaceIndex(s)+1] // drop trailing spaces (no alloc.)
-		s = append(s, '…')             // append shrinkage indicator (no alloc.)
-		title = string(s)              // alloc.
-	}
-
-	return replacer(title)
 }
