@@ -19,8 +19,8 @@ var (
 	}{}
 )
 
-// lastNonspaceIndex returns the index of last non-space character in s.
-func lastNonspaceIndex(s []rune) int {
+// lastIndexNonSpace returns the index of last non-space character in s.
+func lastIndexNonSpace(s []rune) int {
 	for i := len(s) - 1; i >= 0; i-- {
 		if s[i] != ' ' {
 			return i
