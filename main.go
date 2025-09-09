@@ -29,10 +29,10 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 	var (
 		line0     []byte                      // Incoming line from `i3status` stdout.
 		line1     = make([]byte, cnf.BufSize) // Outgoing line with report in it.
-		title     string                      // TITLE is current window title.
-		mode      string                      // MODE is current i3 mode.
-		modeWidth int                         // MODE_LEN is visible length of current i3 mode.
-		report    string                      // REPORT is what goes into LINE before printing.
+		report    string                      // Outgoing report.
+		title     string                      // Current window title.
+		mode      string                      // Current i3 mode.
+		modeWidth int                         // Width of current i3 mode.
 	)
 	newReport := func() {
 		switch modeWidth {
