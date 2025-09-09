@@ -27,19 +27,19 @@ func main() {
 
 func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 	var (
-		line0    []byte                      // Incoming line from `i3status` stdout.
-		line1    = make([]byte, cnf.BufSize) // Outgoing line with report in it.
-		TITLE    string                      // TITLE is current window title.
-		MODE     string                      // MODE is current i3 mode.
-		MODE_LEN int                         // MODE_LEN is visible length of current i3 mode.
-		REPORT   string                      // REPORT is what goes into LINE before printing.
+		line0     []byte                      // Incoming line from `i3status` stdout.
+		line1     = make([]byte, cnf.BufSize) // Outgoing line with report in it.
+		title     string                      // TITLE is current window title.
+		mode      string                      // MODE is current i3 mode.
+		modeWidth int                         // MODE_LEN is visible length of current i3 mode.
+		report    string                      // REPORT is what goes into LINE before printing.
 	)
 	newReport := func() {
-		switch MODE_LEN {
+		switch modeWidth {
 		case 0:
-			REPORT = trimTitle(TITLE, cnf.MaxWidth)
+			report = trimTitle(title, cnf.MaxWidth)
 		default:
-			REPORT = MODE + trimTitle(TITLE, cnf.MaxWidth-MODE_LEN)
+			report = mode + trimTitle(title, cnf.MaxWidth-modeWidth)
 		}
 	}
 	doPrint := func() {
@@ -48,10 +48,10 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 			i = bytes.Index(line0, []byte(cnf.PH))
 		}
 		copy(line1[0:], line0[:i])
-		copy(line1[i:], REPORT)
-		copy(line1[i+len(REPORT):], line0[i+len(cnf.PH):])
+		copy(line1[i:], report)
+		copy(line1[i+len(report):], line0[i+len(cnf.PH):])
 
-		cut := len(line0) + len(REPORT) - len(cnf.PH)
+		cut := len(line0) + len(report) - len(cnf.PH)
 		out := line1[:cut]
 
 		fmt.Fprintf(os.Stdout, "%s\n", out)
@@ -66,16 +66,16 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 		select {
 		case line0 = <-lineCh:
 			// Just print.
-		case TITLE = <-titleCh:
+		case title = <-titleCh:
 			newReport()
-		case MODE = <-modeCh:
-			switch MODE {
+		case mode = <-modeCh:
+			switch mode {
 			case "default":
-				MODE_LEN = 0
-				MODE = ""
+				modeWidth = 0
+				mode = ""
 			default:
-				MODE_LEN = len(MODE) + cnf.ModeStyleWidth
-				MODE = fmt.Sprintf(cnf.ModeStyle, MODE)
+				modeWidth = len(mode) + cnf.ModeStyleWidth
+				mode = fmt.Sprintf(cnf.ModeStyle, mode)
 			}
 			newReport()
 		}
