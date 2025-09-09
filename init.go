@@ -25,12 +25,25 @@ func getwd() string { return filepath.Dir(os.Args[0]) }
 func initConfig(cwd string) {
 	readConfigFile(cwd)
 
-	if len(cnf.OldNew)%2 == 1 {
-		log.Println("Config.Filters: odd argument count. filter list ignored.")
-	} else {
-		// Initialize strings.Replacer.
-		cnf.Replacer = strings.NewReplacer(cnf.OldNew...)
+	// Default oldnew pairs.
+	// https://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references
+	// https://en.wikipedia.org/wiki/Numeric_character_reference
+	oldnew := []string{
+		"&", "&amp;",
+		">", "&gt;",
+		"<", "&lt;",
+		"\"", "&#34;", // "&#34;" is shorter than "&quot;".
+		"\\", "&#92;", // "&#92;" is shorter than "&Backslash;", or anything else.
 	}
+	// Initialize strings.Replacer.
+	if l := len(cnf.OldNew); l == 0 {
+		// no op
+	} else if l%2 == 1 {
+		log.Println(`cnf.OldNew: odd number of arguments, "old_new" list is ignored.`)
+	} else {
+		oldnew = append(oldnew, cnf.OldNew...)
+	}
+	cnf.Replacer = strings.NewReplacer(oldnew...)
 }
 
 func readConfigFile(cwd string) {

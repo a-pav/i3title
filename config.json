@@ -6,28 +6,12 @@
     "mode_style": "<span fgcolor='black' bgcolor='white' font='italic bold'> %s </span> <span color='#666666'>|</span> ",
     "mode_style_width": 5,
     "old_new": [
-        // To test, run document.title = `  ~!@#$%^&*()_+-=[]{}|\;:'"<>?,./\`` in browser console.
-        // https://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references
-        // https://en.wikipedia.org/wiki/Numeric_character_reference
-        "&",
-        "&amp;",
-
-        ">",
-        "&gt;",
-
-        "<",
-        "&lt;",
-
-        "\"",
-        "&#34;", // "&#34;" is shorter than "&quot;".
-
-        "\\",
-        "&#92;" // "&#92;" is shorter than "&Backslash;", or anything else.
-
         // Remove trailing title of Firefox.
         // " — Firefox Developer Edition",
         // "",
         // " — Mozilla Firefox",
         // "",
+        // " — Strawberry Music Player",
+        // ""
     ]
 }
