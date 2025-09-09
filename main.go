@@ -27,34 +27,46 @@ func main() {
 
 func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 	var (
-		line0     []byte                      // Incoming line from `i3status` stdout.
-		line1     = make([]byte, cnf.BufSize) // Outgoing line with report in it.
-		report    string                      // Outgoing report.
-		title     string                      // Current window title.
-		mode      string                      // Current i3 mode.
-		modeWidth int                         // Width of current i3 mode.
+		line0     []byte                         // Incoming line from `i3status` stdout.
+		line1     = make([]byte, cnf.BufSize)    // Outgoing line with report in it.
+		report    = make([]byte, cnf.MaxWidth*5) // Outgoing report (Big enough buffer, even for Chinese characters.)
+		reportEnd int                            // Tracks the end of report buffer.
+		title     string                         // Current window title.
+		mode      string                         // Current i3 mode.
+		modeWidth int                            // Width of current i3 mode .
 	)
+	newMode := func() {
+		switch mode {
+		case "default":
+			modeWidth = 0
+			mode = ""
+		default:
+			modeWidth = len(mode) + cnf.ModeStyleWidth
+			mode = fmt.Sprintf(cnf.ModeStyle, mode)
+		}
+	}
 	newReport := func() {
+		c := 0
 		switch modeWidth {
 		case 0:
-			report = trimTitle(title, cnf.MaxWidth)
+			c += copy(report[0:], trimTitle(title, cnf.MaxWidth))
 		default:
-			report = mode + trimTitle(title, cnf.MaxWidth-modeWidth)
+			c += copy(report[0:], mode)
+			c += copy(report[c:], trimTitle(title, cnf.MaxWidth-modeWidth))
 		}
+		reportEnd = c
 	}
 	doPrint := func() {
 		i := cnf.PHIndex
 		if i <= 0 {
 			i = bytes.Index(line0, []byte(cnf.PH))
 		}
-		copy(line1[0:], line0[:i])
-		copy(line1[i:], report)
-		copy(line1[i+len(report):], line0[i+len(cnf.PH):])
+		c := 0
+		c += copy(line1[0:], line0[:i])
+		c += copy(line1[c:], report[:reportEnd])
+		c += copy(line1[c:], line0[i+len(cnf.PH):])
 
-		cut := len(line0) + len(report) - len(cnf.PH)
-		out := line1[:cut]
-
-		fmt.Fprintf(os.Stdout, "%s\n", out)
+		fmt.Fprintf(os.Stdout, "%s\n", line1[:c])
 	}
 
 	// The first two lines don't contain the placeholder and are printed verbatim.
@@ -69,14 +81,7 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 		case title = <-titleCh:
 			newReport()
 		case mode = <-modeCh:
-			switch mode {
-			case "default":
-				modeWidth = 0
-				mode = ""
-			default:
-				modeWidth = len(mode) + cnf.ModeStyleWidth
-				mode = fmt.Sprintf(cnf.ModeStyle, mode)
-			}
+			newMode()
 			newReport()
 		}
 
