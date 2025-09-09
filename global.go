@@ -12,7 +12,7 @@ var (
 		ModeStyle    string   `json:"mode_style"`
 		ModeStyleLen int      `json:"mode_style_length"`
 		OldNew       []string `json:"old_new"`
-		MaxLen       int      `json:"max_length"`
+		MaxWidth     int      `json:"max_width"`
 		BufSize      uint16   `json:"buffer_size"` // max: 65535, 64KB
 
 		Replacer *strings.Replacer

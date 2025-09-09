@@ -37,9 +37,9 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 	newReport := func() {
 		switch MODE_LEN {
 		case 0:
-			REPORT = trimTitle(TITLE, cnf.MaxLen)
+			REPORT = trimTitle(TITLE, cnf.MaxWidth)
 		default:
-			REPORT = MODE + trimTitle(TITLE, cnf.MaxLen-MODE_LEN)
+			REPORT = MODE + trimTitle(TITLE, cnf.MaxWidth-MODE_LEN)
 		}
 	}
 	doPrint := func() {
