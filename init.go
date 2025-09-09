@@ -47,14 +47,14 @@ func initConfig(cwd string) {
 }
 
 func readConfigFile(cwd string) {
-	// read config file from current working directory.
+	// Read config file from current working directory.
 	bs, err := os.ReadFile(cwd + "/config.json")
 	if err != nil {
 		log.Fatal("opening config file: ", err)
 	}
 
-	// strip comments.
-	bs = regexp.MustCompile(`//.*`).ReplaceAll(bs, nil)
+	// Strip comments.
+	bs = regexp.MustCompile(`(?m)^\s*//.*$`).ReplaceAll(bs, nil)
 
 	if err := json.Unmarshal(bs, &cnf); err != nil {
 		log.Fatal("reading config file: ", err)
