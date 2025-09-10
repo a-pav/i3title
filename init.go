@@ -18,9 +18,19 @@ func init() {
 }
 
 // getwd returns the application's working directory.
-// Using os.Args[0] is the surest way to get the actual CWD. i3 seems to run
-// everything from /home/$USER.
-func getwd() string { return filepath.Dir(os.Args[0]) }
+func getwd() string {
+	exePath, err := os.Executable()
+	if err != nil {
+		log.Fatalln("finding executable path:", err)
+	}
+	// Clean up any symlinks in the executable path.
+	exeRealpath, err := filepath.EvalSymlinks(exePath)
+	if err != nil {
+		log.Fatalln("finding executable real path: ", err)
+	}
+
+	return filepath.Dir(exeRealpath)
+}
 
 func initConfig(cwd string) {
 	readConfigFile(cwd)
