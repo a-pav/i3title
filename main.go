@@ -41,7 +41,7 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 			s := []rune(title)             // alloc.
 			s = s[:max]                    // shrink (no alloc.)
 			s = s[:lastIndexNonSpace(s)+1] // drop trailing spaces (no alloc.)
-			s[max-1] = '…'                 // append shrinkage indicator (no alloc.)
+			s[len(s)-1] = '…'              // append shrinkage indicator (no alloc.)
 			return replacer(string(s))     // alloc.
 		}
 		return replacer(title)
