@@ -29,22 +29,26 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 	var (
 		line0     []byte                         // Incoming line from `i3status` stdout.
 		line1     = make([]byte, cnf.BufSize)    // Outgoing line with report in it.
-		report    = make([]byte, cnf.MaxWidth*5) // Outgoing report (Big enough buffer, even for Chinese characters.)
-		reportEnd int                            // Tracks the end of report buffer.
-		title     string                         // Current window title.
 		mode      string                         // Current i3 mode.
 		modeWidth int                            // Width of current i3 mode .
+		title0    string                         // Current window full title.
+		title1    = make([]rune, cnf.MaxWidth)   // Runes of current window title. Helps with counting and less allocation.
+		report    = make([]byte, cnf.MaxWidth*5) // Outgoing report (Big enough buffer, even for Chinese characters.)
+		reportEnd int                            // Tracks the end of report buffer.
 	)
 	trimTitle := func(max int) string {
-		// NOTE: `len([]rune(string))` pattern is optimized by compiler.
-		if len([]rune(title)) > max {
-			s := []rune(title)             // alloc.
-			s = s[:max]                    // shrink (no alloc.)
-			s = s[:lastIndexNonSpace(s)+1] // drop trailing spaces (no alloc.)
-			s[len(s)-1] = '…'              // append shrinkage indicator (no alloc.)
-			return replacer(string(s))     // alloc.
+		i := 0
+		for _, r := range title0 {
+			title1[i] = r
+			if i == max-1 {
+				s := title1                    // (no alloc.)
+				s = s[:lastIndexNonSpace(s)+1] // drop trailing spaces (no alloc.)
+				s[len(s)-1] = '…'              // add shrinkage indicator (no alloc.)
+				return replacer(string(s))     // alloc.
+			}
+			i++
 		}
-		return replacer(title)
+		return replacer(title0)
 	}
 	newMode := func() {
 		switch mode {
@@ -89,7 +93,7 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 		select {
 		case line0 = <-lineCh:
 			// Just print.
-		case title = <-titleCh:
+		case title0 = <-titleCh:
 			newReport()
 		case mode = <-modeCh:
 			newMode()
