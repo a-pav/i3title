@@ -36,7 +36,7 @@ func initConfig(cwd string) {
 	readConfigFile(cwd)
 
 	if len(cnf.OldNew)%2 == 1 {
-		log.Println("Config.Filters: odd argument count. filter list ignored.")
+		log.Println(`cnf.OldNew: odd number of arguments, "old_new" list is ignored.`)
 	} else {
 		// Initialize strings.Replacer.
 		cnf.Replacer = strings.NewReplacer(cnf.OldNew...)
