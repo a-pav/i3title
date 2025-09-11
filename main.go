@@ -52,7 +52,7 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 			modeWidth = 0
 			mode = ""
 		default:
-			modeWidth = len(mode) + cnf.ModeStyleWidth
+			modeWidth = len([]rune(mode)) + cnf.ModeStyleWidth
 			mode = fmt.Sprintf(cnf.ModeStyle, mode)
 		}
 	}
