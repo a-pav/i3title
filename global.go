@@ -26,7 +26,7 @@ func lastIndexNonSpace(s []rune) int {
 			return i
 		}
 	}
-	return 0 // All were space.
+	return -1 // All were space.
 }
 
 // Read-only `[]byte(string)` convertions are optimized by compiler:
