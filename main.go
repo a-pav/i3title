@@ -37,17 +37,28 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 		reportEnd int                            // Tracks the end of report buffer.
 	)
 	trimTitle := func(max int) string {
+		if len(title0) <= max {
+			return replacer(title0)
+		}
+
+		s := title1
 		i := 0
 		for _, r := range title0 {
-			title1[i] = r
-			if i == max-1 {
-				s := title1                    // (no alloc.)
-				s = s[:lastIndexNonSpace(s)+1] // drop trailing spaces (no alloc.)
-				s[len(s)-1] = '…'              // add shrinkage indicator (no alloc.)
-				return replacer(string(s))     // alloc.
+			if i == max {
+				s = s[:max]
+				n := lastIndexNonSpace(s) // n will be <= max-1
+				if n == max-1 {
+					s[n] = '…' // change the last character
+				} else { // n < max-1
+					s[n+1] = '…'
+					s = s[:n+2]
+				}
+				return replacer(string(s)) // alloc
 			}
+			s[i] = r
 			i++
 		}
+
 		return replacer(title0)
 	}
 	newMode := func() {
