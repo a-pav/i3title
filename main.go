@@ -92,12 +92,12 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 		c += copy(line1[c:], report[:reportEnd])
 		c += copy(line1[c:], line0[i+len(cnf.PH):])
 
-		fmt.Fprintf(os.Stdout, "%s\n", line1[:c])
+		os.Stdout.Write(append(line1[:c], byte('\n')))
 	}
 
 	// The first two lines don't contain the placeholder and are printed verbatim.
 	for range 2 {
-		fmt.Fprintf(os.Stdout, "%s\n", <-lineCh)
+		os.Stdout.Write(append(<-lineCh, byte('\n')))
 	}
 
 	for {
