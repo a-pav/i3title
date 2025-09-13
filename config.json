@@ -25,6 +25,9 @@
         "\\",
         "&#92;"
 
+        // "\t",
+        // "&#9;"
+
         // Remove trailing title of Firefox.
         // " — Firefox Developer Edition",
         // "",
