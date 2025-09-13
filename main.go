@@ -115,6 +115,10 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 }
 
 func moder(modeCh chan<- string) {
+	if cnf.ModeStyleIndex < 0 {
+		close(modeCh)
+		return
+	}
 	modeER := i3.Subscribe(i3.ModeEventType)
 
 	for modeER.Next() {
