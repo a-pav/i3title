@@ -37,7 +37,7 @@ func initConfig(cwd string) {
 
 	// Strip styling tags, attrs and and any char that doesn't add to the width.
 	raw := regexp.MustCompile("</?[^>]+>").ReplaceAllString(cnf.ModeStyle, "")
-	cnf.ModeStyleWidth = len(raw) - len("%s")
+	cnf.ModeStyleWidth = len([]rune(raw)) - len("%s")
 
 	cnf.ModeStyleIndex = strings.Index(cnf.ModeStyle, "%s")
 
