@@ -35,6 +35,12 @@ func getwd() string {
 func initConfig(cwd string) {
 	readConfigFile(cwd)
 
+	// Strip styling tags, attrs and and any char that doesn't add to the width.
+	raw := regexp.MustCompile("</?[^>]+>").ReplaceAllString(cnf.ModeStyle, "")
+	cnf.ModeStyleWidth = len(raw) - len("%s")
+
+	cnf.ModeStyleIndex = strings.Index(cnf.ModeStyle, "%s")
+
 	if len(cnf.OldNew)%2 == 1 {
 		log.Println(`cnf.OldNew: odd number of arguments, "old_new" list is ignored.`)
 	} else {

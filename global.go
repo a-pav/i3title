@@ -7,15 +7,16 @@ import (
 var (
 	// cnf is the Config struct.
 	cnf = struct {
-		PH             string   `json:"placeholder"`
-		PHIndex        int      `json:"placeholder_index"`
-		ModeStyle      string   `json:"mode_style"`
-		ModeStyleWidth int      `json:"mode_style_width"`
-		OldNew         []string `json:"old_new"`
-		MaxWidth       int      `json:"max_width"`
-		BufSize        uint16   `json:"buffer_size"` // max: 65535, 64KB
+		BufSize   uint16   `json:"buffer_size"` // max: 65535, 64KB
+		PH        string   `json:"placeholder"`
+		PHIndex   int      `json:"placeholder_index"`
+		MaxWidth  int      `json:"max_width"`
+		ModeStyle string   `json:"mode_style"`
+		OldNew    []string `json:"old_new"`
 
-		Replacer *strings.Replacer
+		ModeStyleWidth int
+		ModeStyleIndex int
+		Replacer       *strings.Replacer
 	}{}
 )
 

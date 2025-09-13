@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"log"
 	"os"
 
@@ -65,21 +64,20 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 		switch mode {
 		case "default":
 			modeWidth = 0
-			mode = ""
 		default:
 			modeWidth = len([]rune(mode)) + cnf.ModeStyleWidth
-			mode = fmt.Sprintf(cnf.ModeStyle, mode)
 		}
 	}
 	newReport := func() {
 		c := 0
-		switch modeWidth {
-		case 0:
-			c += copy(report[0:], trimTitle(cnf.MaxWidth))
-		default:
-			c += copy(report[0:], mode)
-			c += copy(report[c:], trimTitle(cnf.MaxWidth-modeWidth))
+		if modeWidth > 0 {
+			i := cnf.ModeStyleIndex
+			c += copy(report[c:], cnf.ModeStyle[:i])
+			c += copy(report[c:], mode)
+			c += copy(report[c:], cnf.ModeStyle[i+2:]) // 2 == len("%s")
 		}
+		c += copy(report[c:], trimTitle(cnf.MaxWidth-modeWidth))
+
 		reportEnd = c
 	}
 	doPrint := func() {
@@ -91,8 +89,9 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 		c += copy(line1[0:], line0[:i])
 		c += copy(line1[c:], report[:reportEnd])
 		c += copy(line1[c:], line0[i+len(cnf.PH):])
+		c += copy(line1[c:], "\n")
 
-		os.Stdout.Write(append(line1[:c], byte('\n')))
+		os.Stdout.Write(line1[:c])
 	}
 
 	// The first two lines don't contain the placeholder and are printed verbatim.
