@@ -165,7 +165,8 @@ func liner(lineCh chan<- []byte) {
 		log.Fatal("scanner failed to init: ", err)
 	}
 	// Set maximum buffer size.
-	scanner.Buffer(make([]byte, 0, cnf.BufSize), 0)
+	buf := make([]byte, cnf.BufSize)
+	scanner.Buffer(buf, 0)
 
 	// Normal op starts after first 4 lines of output from `i3status`.
 	// These look like:
