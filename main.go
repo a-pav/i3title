@@ -86,7 +86,7 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 			i = bytes.Index(line0, []byte(cnf.PH))
 		}
 		c := 0
-		c += copy(line1[0:], line0[:i])
+		c += copy(line1[c:], line0[:i])
 		c += copy(line1[c:], report[:reportEnd])
 		c += copy(line1[c:], line0[i+len(cnf.PH):])
 		c += copy(line1[c:], "\n")
@@ -99,13 +99,18 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 		os.Stdout.Write(append(<-lineCh, byte('\n')))
 	}
 
+	ok := true
 	for {
 		select {
 		case line0 = <-lineCh:
 			// Just print.
 		case title0 = <-titleCh:
 			newReport()
-		case mode = <-modeCh:
+		case mode, ok = <-modeCh:
+			if !ok {
+				modeCh = nil // disable
+				continue
+			}
 			newMode()
 			newReport()
 		}
