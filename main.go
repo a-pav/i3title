@@ -96,7 +96,13 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 
 	// The first two lines don't contain the placeholder and are printed verbatim.
 	for range 2 {
-		os.Stdout.Write(append(<-lineCh, byte('\n')))
+		line0 = <-lineCh
+
+		c := 0
+		c += copy(line1[c:], line0)
+		c += copy(line1[c:], "\n")
+
+		os.Stdout.Write(line1[:c])
 	}
 
 	ok := true
