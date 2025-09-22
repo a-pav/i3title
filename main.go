@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"log"
 	"os"
 
@@ -27,47 +26,110 @@ func main() {
 
 func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 	var (
-		LINE     []byte // LINE comes from `i3status` stdout.
-		TITLE    string // TITLE is current window title.
-		MODE     string // MODE is current i3 mode.
-		MODE_LEN int    // MODE_LEN is visible length of current i3 mode.
-		REPORT   string // REPORT is what goes into LINE before printing.
+		line0     []byte                         // Incoming line from `i3status` stdout.
+		line1     = make([]byte, cnf.BufSize)    // Outgoing line with report in it.
+		mode      string                         // Current i3 mode.
+		modeWidth int                            // Width of current i3 mode .
+		title0    string                         // Current window full title.
+		title1    = make([]rune, cnf.MaxWidth)   // Runes of current window title. Helps with counting and less allocation.
+		report    = make([]byte, cnf.MaxWidth*5) // Outgoing report (Big enough buffer, even for Chinese characters.)
+		reportEnd int                            // Tracks the end of report buffer.
 	)
-	newReport := func() {
-		switch MODE_LEN {
-		case 0:
-			REPORT = trimTitle(TITLE, cnf.MaxLen)
+	trimTitle := func(max int) string {
+		if len(title0) <= max {
+			return replacer(title0)
+		}
+
+		s := title1
+		i := 0
+		for _, r := range title0 {
+			if i == max {
+				s = s[:max]
+				n := lastIndexNonSpace(s) // n will be <= max-1
+				if n == max-1 {
+					s[n] = '…' // change the last character
+				} else { // n < max-1
+					s[n+1] = '…'
+					s = s[:n+2]
+				}
+				return replacer(string(s)) // alloc
+			}
+			s[i] = r
+			i++
+		}
+
+		return replacer(title0)
+	}
+	newMode := func() {
+		switch mode {
+		case "default":
+			modeWidth = 0
 		default:
-			REPORT = MODE + trimTitle(TITLE, cnf.MaxLen-MODE_LEN)
+			modeWidth = len([]rune(mode)) + cnf.ModeStyleWidth
 		}
 	}
+	newReport := func() {
+		c := 0
+		if modeWidth > 0 {
+			i := cnf.ModeStyleIndex
+			c += copy(report[c:], cnf.ModeStyle[:i])
+			c += copy(report[c:], mode)
+			c += copy(report[c:], cnf.ModeStyle[i+2:]) // 2 == len("%s")
+		}
+		c += copy(report[c:], trimTitle(cnf.MaxWidth-modeWidth))
 
+		reportEnd = c
+	}
+	doPrint := func() {
+		i := cnf.PHIndex
+		if i <= 0 {
+			i = bytes.Index(line0, []byte(cnf.PH))
+		}
+		c := 0
+		c += copy(line1[c:], line0[:i])
+		c += copy(line1[c:], report[:reportEnd])
+		c += copy(line1[c:], line0[i+len(cnf.PH):])
+		c += copy(line1[c:], "\n")
+
+		os.Stdout.Write(line1[:c])
+	}
+
+	// The first two lines don't contain the placeholder and are printed verbatim.
+	for range 2 {
+		line0 = <-lineCh
+
+		c := 0
+		c += copy(line1[c:], line0)
+		c += copy(line1[c:], "\n")
+
+		os.Stdout.Write(line1[:c])
+	}
+
+	ok := true
 	for {
 		select {
-		case LINE = <-lineCh:
+		case line0 = <-lineCh:
 			// Just print.
-		case TITLE = <-titleCh:
+		case title0 = <-titleCh:
 			newReport()
-		case MODE = <-modeCh:
-			switch MODE {
-			case "default":
-				MODE_LEN = 0
-			default:
-				MODE_LEN = len(MODE) + cnf.ModeStyleLen
-				MODE = fmt.Sprintf(cnf.ModeStyle, MODE)
+		case mode, ok = <-modeCh:
+			if !ok {
+				modeCh = nil // disable
+				continue
 			}
+			newMode()
 			newReport()
 		}
-		// Do print.
-		fmt.Fprintf(os.Stdout, "%s\n",
-			// Read-only `[]byte(string)` convertions are optimized by compiler:
-			// https://github.com/golang/go/issues/2205 (commits=c8adb30,925d2fb,d63c88d).
-			bytes.Replace(LINE, []byte(cnf.PH), []byte(REPORT), 1),
-		)
+
+		doPrint()
 	}
 }
 
 func moder(modeCh chan<- string) {
+	if cnf.ModeStyleIndex < 0 {
+		close(modeCh)
+		return
+	}
 	modeER := i3.Subscribe(i3.ModeEventType)
 
 	for modeER.Next() {
@@ -109,7 +171,8 @@ func liner(lineCh chan<- []byte) {
 		log.Fatal("scanner failed to init: ", err)
 	}
 	// Set maximum buffer size.
-	scanner.Buffer(make([]byte, 0, cnf.BufSize), 0)
+	buf := make([]byte, cnf.BufSize)
+	scanner.Buffer(buf, 0)
 
 	// Normal op starts after first 4 lines of output from `i3status`.
 	// These look like:
@@ -134,23 +197,6 @@ func liner(lineCh chan<- []byte) {
 }
 
 func replacer(title string) string {
+	// This will be inlined.
 	return cnf.Replacer.Replace(title)
-}
-
-// trimTitle cuts title at maxlen, ensuring that it doesn't end with white space,
-// and runs the replacer on it.
-func trimTitle(title string, maxlen int) string {
-	// Note: `len([]rune(string))` pattern is optimized by compiler.
-	if len([]rune(title)) > maxlen {
-		// This may look cumbersome, but it's clear and easy to maintain.
-		// And as shown by the benchmarks, slicing a slice multiple times rather
-		// than once, does not affect performance in any meaningful way.
-		s := []rune(title)             // alloc.
-		s = s[:maxlen]                 // shrink (no alloc.)
-		s = s[:lastNonspaceIndex(s)+1] // drop trailing spaces (no alloc.)
-		s = append(s, '…')             // append shrinkage indicator (no alloc.)
-		title = string(s)              // alloc.
-	}
-
-	return replacer(title)
 }

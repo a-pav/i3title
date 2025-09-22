@@ -7,27 +7,31 @@ import (
 var (
 	// cnf is the Config struct.
 	cnf = struct {
-		PH           string   `json:"placeholder"`
-		ModeStyle    string   `json:"mode_style"`
-		ModeStyleLen int      `json:"mode_style_length"`
-		OldNew       []string `json:"old_new"`
-		MaxLen       int      `json:"max_length"`
-		BufSize      uint16   `json:"buffer_size"` // max: 65535, 64KB
+		BufSize   uint16   `json:"buffer_size"` // max: 65535, 64KB
+		PH        string   `json:"placeholder"`
+		PHIndex   int      `json:"placeholder_index"`
+		MaxWidth  int      `json:"max_width"`
+		ModeStyle string   `json:"mode_style"`
+		OldNew    []string `json:"old_new"`
 
-		Replacer *strings.Replacer
+		ModeStyleWidth int
+		ModeStyleIndex int
+		Replacer       *strings.Replacer
 	}{}
 )
 
-// lastNonspaceIndex returns the index of last non-space character in s.
-func lastNonspaceIndex(s []rune) int {
+// lastIndexNonSpace returns the index of last non-space character in s.
+func lastIndexNonSpace(s []rune) int {
 	for i := len(s) - 1; i >= 0; i-- {
 		if s[i] != ' ' {
 			return i
 		}
 	}
-	return 0 // All were space.
+	return -1 // All were space.
 }
 
+// Read-only `[]byte(string)` convertions are optimized by compiler:
+// https://github.com/golang/go/issues/2205 (commits=c8adb30,925d2fb,d63c88d).
 // func string2Bytes(s string) []byte {
 // 	if len(s) == 0 {
 // 		return nil

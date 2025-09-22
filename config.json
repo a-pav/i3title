@@ -1,11 +1,12 @@
 {
-    "buffer_size": 1500,
+    "buffer_size": 1600,
     "placeholder": "I3TITLE",
-    "max_length": 96,
+    "placeholder_index": 124,
+    "max_width": 96,
     "mode_style": "<span fgcolor='black' bgcolor='white' font='italic bold'> %s </span> <span color='#666666'>|</span> ",
-    "mode_style_length": 5,
     "old_new": [
-        // To test, run document.title = `  ~!@#$%^&*()_+-=[]{}|\;:'"<>?,./\`` in browser console.
+        // To test, use zenity like:
+        //      zenity --info --title="~\!@#$%^&*()_+-=[]{}|\;:'\"<>?,./\`"
         // https://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references
         // https://en.wikipedia.org/wiki/Numeric_character_reference
         "&",
@@ -16,17 +17,22 @@
 
         "<",
         "&lt;",
-
+        // "&#34;" is shorter than "&quot;".
         "\"",
-        "&#34;", // "&#34;" is shorter than "&quot;".
-
+        "&#34;",
+        // "&#92;" is shorter than "&Backslash;", or anything else.
         "\\",
-        "&#92;" // "&#92;" is shorter than "&Backslash;", or anything else.
+        "&#92;"
+
+        // "\t",
+        // "&#9;"
 
         // Remove trailing title of Firefox.
         // " — Firefox Developer Edition",
         // "",
         // " — Mozilla Firefox",
         // "",
+        // " — Strawberry Music Player",
+        // " 🎵"
     ]
 }
