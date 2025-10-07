@@ -5,26 +5,29 @@ import (
 	"bytes"
 	"log"
 	"os"
+	"syscall"
 
 	"go.i3wm.org/i3/v4"
 )
 
 func main() {
 	var (
-		lineCh  = make(chan []byte)
-		titleCh = make(chan string)
-		modeCh  = make(chan string)
+		lineCh    = make(chan []byte)
+		messageCh = make(chan []byte)
+		titleCh   = make(chan string)
+		modeCh    = make(chan string)
 	)
-	go reporter(lineCh, titleCh, modeCh)
+	go reporter(lineCh, messageCh, titleCh, modeCh)
 
 	liner(lineCh)
 	go titler(titleCh)
 	go moder(modeCh)
+	go messagePipe(messageCh)
 
 	select {} // Block forever.
 }
 
-func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
+func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 	var (
 		line0     []byte                         // Incoming line from `i3status` stdout.
 		line1     = make([]byte, cnf.BufSize)    // Outgoing line with report in it.
@@ -33,6 +36,7 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 		title0    string                         // Current window full title.
 		title1    = make([]rune, cnf.MaxWidth)   // Runes of current window title. Helps with counting and less allocation.
 		report    = make([]byte, cnf.MaxWidth*5) // Outgoing report (Big enough buffer, even for Chinese characters.)
+		message   []byte                         // Overwrites the report.
 		reportEnd int                            // Tracks the end of report buffer.
 	)
 	trimTitle := func(max int) string {
@@ -80,6 +84,12 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 
 		reportEnd = c
 	}
+	// newMessage overwrites the report.
+	newMessage := func() {
+		c := 0
+		c += copy(report[c:], message)
+		reportEnd = c
+	}
 	doPrint := func() {
 		i := cnf.PHIndex
 		if i <= 0 {
@@ -105,8 +115,8 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 		os.Stdout.Write(line1[:c])
 	}
 
-	ok := true
 	for {
+		var ok bool
 		select {
 		case line0 = <-lineCh:
 			// Just print.
@@ -119,6 +129,12 @@ func reporter(lineCh <-chan []byte, titleCh, modeCh <-chan string) {
 			}
 			newMode()
 			newReport()
+		case message, ok = <-messageCh:
+			if !ok {
+				messageCh = nil // disable
+				continue
+			}
+			newMessage()
 		}
 
 		doPrint()
@@ -199,4 +215,39 @@ func liner(lineCh chan<- []byte) {
 func replacer(title string) string {
 	// This will be inlined.
 	return cnf.Replacer.Replace(title)
+}
+
+func messagePipe(messageCh chan<- []byte) {
+	pipePath := "/tmp/i3title.pipe"
+
+	// Remove any old pipe
+	os.Remove(pipePath)
+
+	// Create a new FIFO with 0600 permissions
+	err := syscall.Mkfifo(pipePath, 0600)
+	if err != nil {
+		panic(err)
+	}
+
+	f, err := os.OpenFile(pipePath, os.O_RDWR, 0600)
+	if err != nil {
+		log.Fatal("pipe file failed to open:", err)
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	if err := scanner.Err(); err != nil {
+		log.Fatal("pipe scanner failed to init: ", err)
+	}
+	// Set maximum buffer size.
+	buf := make([]byte, cnf.MaxWidth*5)
+	scanner.Buffer(buf, 0)
+
+	for scanner.Scan() {
+		messageCh <- scanner.Bytes()
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Println("pipe scanner error:", err)
+	}
 }
