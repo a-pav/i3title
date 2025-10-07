@@ -12,6 +12,7 @@ var (
 		PHIndex   int      `json:"placeholder_index"`
 		MaxWidth  int      `json:"max_width"`
 		ModeStyle string   `json:"mode_style"`
+		Pipe      string   `json:"pipe"` // FIFO pipe for sending messages to overwrite report.
 		OldNew    []string `json:"old_new"`
 
 		ModeStyleWidth int

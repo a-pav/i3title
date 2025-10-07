@@ -219,24 +219,25 @@ func replacer(title string) string {
 }
 
 func messagePipe(messageCh chan<- []byte) {
-	pipePath := "/tmp/i3title.pipe"
-
-	// Remove any old pipe
-	os.Remove(pipePath)
-
-	// Create a new FIFO with 0600 permissions
-	err := syscall.Mkfifo(pipePath, 0600)
+	if len(cnf.Pipe) == 0 {
+		close(messageCh)
+		return
+	}
+	// Remove any old pipe.
+	os.Remove(cnf.Pipe)
+	// Create a new FIFO with 0600 permissions.
+	err := syscall.Mkfifo(cnf.Pipe, 0600)
 	if err != nil {
 		panic(err)
 	}
 
-	f, err := os.OpenFile(pipePath, os.O_RDWR, 0600)
+	fi, err := os.OpenFile(cnf.Pipe, os.O_RDWR, 0600)
 	if err != nil {
 		log.Fatal("pipe file failed to open:", err)
 	}
-	defer f.Close()
+	defer fi.Close()
 
-	scanner := bufio.NewScanner(f)
+	scanner := bufio.NewScanner(fi)
 	if err := scanner.Err(); err != nil {
 		log.Fatal("pipe scanner failed to init: ", err)
 	}

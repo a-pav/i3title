@@ -4,6 +4,7 @@
     "placeholder_index": 124,
     "max_width": 96,
     "mode_style": "<span fgcolor='black' bgcolor='white' font='italic bold'> %s </span> <span color='#666666'>|</span> ",
+    "pipe": "/tmp/i3title.pipe",
     "old_new": [
         // To test, use zenity like:
         //      zenity --info --title="~\!@#$%^&*()_+-=[]{}|\;:'\"<>?,./\`"
