@@ -78,7 +78,7 @@ func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 	}
 	newReport := func() {
 		if len(message) > 0 {
-			return // report doesn't update unless message is cleared
+			return // report doesn't update unless message is cleared.
 		}
 
 		c := 0
@@ -98,14 +98,14 @@ func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 		doPrint()
 	}
 	newMessage := func() {
-		if len(message) > 0 {
-			c := 0
-			c += copy(report[c:], message)
-			reportEnd = c
-			doPrint()
-		} else {
+		if len(message) == 0 { // clearing message?
 			newReport()
+			return
 		}
+		c := 0
+		c += copy(report[c:], message)
+		reportEnd = c
+		doPrint()
 	}
 
 	// The first two lines don't contain the placeholder and are printed verbatim.
