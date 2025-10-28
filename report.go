@@ -136,7 +136,7 @@ func moder(modeCh chan<- string) {
 		modeCh <- modeER.Event().(*i3.ModeEvent).Change
 	}
 
-	log.Fatal("ending program:", modeER.Close())
+	log.Printf("WARNING: no more mode event: %v", modeER.Close())
 }
 
 func titler(titleCh chan<- string) {
@@ -150,7 +150,7 @@ func titler(titleCh chan<- string) {
 		}
 	}
 
-	log.Fatal("ending program:", windowER.Close())
+	log.Printf("WARNING: no more title event: %v", windowER.Close())
 }
 
 func liner(lineCh chan<- []byte) {
@@ -164,15 +164,16 @@ func liner(lineCh chan<- []byte) {
 	// 	log.Fatal(err)
 	// }
 	// defer cmd.Process.Release()
-	// scanner := bufio.NewScanner(stdout)
+	// lineScnr := bufio.NewScanner(stdout)
 	// // DEBUG ////////////////////////////////////
-	scanner := bufio.NewScanner(os.Stdin)
-	if err := scanner.Err(); err != nil {
-		log.Fatal("scanner failed to init: ", err)
-	}
+	lineScnr := bufio.NewScanner(os.Stdin)
 	// Set maximum buffer size.
 	buf := make([]byte, cnf.BufSize)
-	scanner.Buffer(buf, 0)
+	lineScnr.Buffer(buf, 0)
+	if err := lineScnr.Err(); err != nil {
+		log.Printf("init line scanner: %v", err)
+		return
+	}
 
 	// Normal op starts after first 4 lines of output from `i3status`.
 	// These look like:
@@ -181,24 +182,19 @@ func liner(lineCh chan<- []byte) {
 	// 		[{"name": ... ]
 	// 		,[{"name": ... ]
 	for range 4 {
-		scanner.Scan()
-		lineCh <- scanner.Bytes()
+		lineScnr.Scan()
+		lineCh <- lineScnr.Bytes()
 	}
 
 	go func() {
-		for scanner.Scan() {
-			lineCh <- scanner.Bytes()
+		for lineScnr.Scan() {
+			lineCh <- lineScnr.Bytes()
 		}
 
-		if err := scanner.Err(); err != nil {
-			log.Fatal("scanner error:", err)
+		if err := lineScnr.Err(); err != nil {
+			log.Printf("line scanner: %v", err)
 		}
 	}()
-}
-
-func replacer(title string) string {
-	// This will be inlined.
-	return cnf.Replacer.Replace(title)
 }
 
 func messagePipe(messageCh chan<- []byte) {
@@ -216,25 +212,34 @@ func messagePipe(messageCh chan<- []byte) {
 
 	fi, err := os.OpenFile(cnf.Pipe, os.O_RDWR, 0600)
 	if err != nil {
-		log.Fatal("pipe file failed to open:", err)
+		log.Printf("opening pipe: %v", err)
+		return
 	}
 	defer fi.Close()
 
-	scanner := bufio.NewScanner(fi)
-	if err := scanner.Err(); err != nil {
-		log.Fatal("pipe scanner failed to init: ", err)
-	}
+	pipeScnr := bufio.NewScanner(fi)
 	// Set maximum buffer size.
 	buf := make([]byte, cnf.MaxWidth*5)
-	scanner.Buffer(buf, 0)
-
-	for scanner.Scan() {
-		messageCh <- scanner.Bytes()
+	pipeScnr.Buffer(buf, 0)
+	if err := pipeScnr.Err(); err != nil {
+		log.Printf("init pipe scanner: %v", err)
+		return
 	}
 
-	if err := scanner.Err(); err != nil {
-		log.Println("pipe scanner error:", err)
-	}
+	go func() {
+		for pipeScnr.Scan() {
+			messageCh <- pipeScnr.Bytes()
+		}
+
+		if err := pipeScnr.Err(); err != nil {
+			log.Println("pipe scanner:", err)
+		}
+	}()
+}
+
+func replacer(title string) string {
+	// This will be inlined.
+	return cnf.Replacer.Replace(title)
 }
 
 // lastIndexNonSpace returns the index of last non-space character in s.
