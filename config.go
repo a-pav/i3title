@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -26,18 +27,21 @@ var (
 	}{}
 )
 
-func loadConfig() {
+func loadConfig() error {
 	// Read config file from current working directory.
-	cwd := getwd()
+	cwd, err := getwd()
+	if err != nil {
+		return err
+	}
 	bs, err := os.ReadFile(cwd + "/config.json")
 	if err != nil {
-		log.Fatal("opening config file: ", err)
+		return fmt.Errorf("opening config: %v", err)
 	}
 	// Strip comments before decoding.
 	bs = regexp.MustCompile(`(?m)^\s*//.*$`).ReplaceAll(bs, nil)
 
 	if err := json.Unmarshal(bs, &cnf); err != nil {
-		log.Fatal("reading config file: ", err)
+		return fmt.Errorf("reading config: %v", err)
 	}
 	defer discardConfig()
 
@@ -48,11 +52,13 @@ func loadConfig() {
 	cnf.ModeStyleIndex = strings.Index(cnf.ModeStyle, "%s")
 
 	if len(cnf.OldNew)%2 == 1 {
-		log.Println(`cnf.OldNew: odd number of arguments, "old_new" list is ignored.`)
+		log.Println(`loadConfig: "old_new" list is ignored. odd number of arguments.`)
 	} else {
 		// Initialize strings.Replacer.
 		cnf.Replacer = strings.NewReplacer(cnf.OldNew...)
 	}
+
+	return nil
 }
 
 // discardConfig discards parts of the config that are no longer needed.
@@ -61,18 +67,18 @@ func discardConfig() {
 }
 
 // getwd returns the application's working directory.
-func getwd() string {
+func getwd() (string, error) {
 	exePath, err := os.Executable()
 	if err != nil {
-		log.Fatalln("finding executable path:", err)
+		return "", fmt.Errorf("getwd: executable path: %v", err)
 	}
 	// Clean up any symlinks in the executable path.
 	exeRealpath, err := filepath.EvalSymlinks(exePath)
 	if err != nil {
-		log.Fatalln("finding executable real path: ", err)
+		return "", fmt.Errorf("getwd: executable real path: %v", err)
 	}
 
-	return filepath.Dir(exeRealpath)
+	return filepath.Dir(exeRealpath), nil
 }
 
 // lastIndexNonSpace returns the index of last non-space character in s.

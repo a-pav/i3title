@@ -5,13 +5,18 @@ import (
 )
 
 func main() {
-	run()
+	if err := run(); err != nil {
+		log.Fatalln(err)
+	}
 }
 
-func run() {
+func run() error {
 	log.SetPrefix("i3title: ")
 	log.SetFlags(log.Lmsgprefix)
-	loadConfig()
+
+	if err := loadConfig(); err != nil {
+		return err
+	}
 
 	var (
 		lineCh    = make(chan []byte)
