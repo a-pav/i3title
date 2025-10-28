@@ -27,9 +27,9 @@ func run() error {
 	go reporter(lineCh, messageCh, titleCh, modeCh)
 
 	liner(lineCh)
+	messagePipe(messageCh)
 	go titler(titleCh)
 	go moder(modeCh)
-	go messagePipe(messageCh)
 
 	select {} // Block forever.
 }

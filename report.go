@@ -215,7 +215,6 @@ func messagePipe(messageCh chan<- []byte) {
 		log.Printf("opening pipe: %v", err)
 		return
 	}
-	defer fi.Close()
 
 	pipeScnr := bufio.NewScanner(fi)
 	// Set maximum buffer size.
@@ -230,6 +229,7 @@ func messagePipe(messageCh chan<- []byte) {
 		for pipeScnr.Scan() {
 			messageCh <- pipeScnr.Bytes()
 		}
+		fi.Close()
 
 		if err := pipeScnr.Err(); err != nil {
 			log.Println("pipe scanner:", err)
