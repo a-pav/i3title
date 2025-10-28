@@ -10,6 +10,8 @@ import (
 	"go.i3wm.org/i3/v4"
 )
 
+// reporter is the central event processor that consumes data from all channels
+// and handles the unified reporting logic.
 func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 	var (
 		line0     []byte                         // Incoming line from `i3status` stdout.
@@ -125,6 +127,7 @@ func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 	}
 }
 
+// emitModes subscribes to i3 mode events and sends the modes to channel.
 func emitModes(modeCh chan<- string) {
 	if cnf.ModeStyleIndex < 0 {
 		close(modeCh)
@@ -139,6 +142,7 @@ func emitModes(modeCh chan<- string) {
 	log.Printf("WARNING: no more mode event: %v", modeER.Close())
 }
 
+// emitTitles subscribes to i3 window events and sends the titles to channel.
 func emitTitles(titleCh chan<- string) {
 	windowER := i3.Subscribe(i3.WindowEventType)
 
@@ -153,6 +157,8 @@ func emitTitles(titleCh chan<- string) {
 	log.Printf("WARNING: no more title event: %v", windowER.Close())
 }
 
+// emitLines scans os.Stdin, which is presumed to be data coming from i3status,
+// and sends the data to channel.
 func emitLines(lineCh chan<- []byte) {
 	// // DEBUG ////////////////////////////////////
 	// cmd := exec.Command("i3status")
@@ -197,6 +203,8 @@ func emitLines(lineCh chan<- []byte) {
 	}()
 }
 
+// emitMessages reads from the named pipe at config.Pipe path and sends the data
+// to channel.
 func emitMessages(messageCh chan<- []byte) {
 	if len(cnf.Pipe) == 0 {
 		close(messageCh)
