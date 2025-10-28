@@ -11,6 +11,8 @@ import (
 )
 
 func main() {
+	run()
+
 	var (
 		lineCh    = make(chan []byte)
 		messageCh = make(chan []byte)
@@ -252,4 +254,10 @@ func messagePipe(messageCh chan<- []byte) {
 	if err := scanner.Err(); err != nil {
 		log.Println("pipe scanner error:", err)
 	}
+}
+
+func run() {
+	log.SetPrefix("i3title: ")
+	log.SetFlags(log.Lmsgprefix)
+	loadConfig()
 }
