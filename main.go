@@ -26,10 +26,10 @@ func run() error {
 	)
 	go reporter(lineCh, messageCh, titleCh, modeCh)
 
-	liner(lineCh)
-	messagePipe(messageCh)
-	go titler(titleCh)
-	go moder(modeCh)
+	emitLines(lineCh)
+	emitMessages(messageCh)
+	go emitTitles(titleCh)
+	go emitModes(modeCh)
 
 	select {} // Block forever.
 }

@@ -125,7 +125,7 @@ func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 	}
 }
 
-func moder(modeCh chan<- string) {
+func emitModes(modeCh chan<- string) {
 	if cnf.ModeStyleIndex < 0 {
 		close(modeCh)
 		return
@@ -139,7 +139,7 @@ func moder(modeCh chan<- string) {
 	log.Printf("WARNING: no more mode event: %v", modeER.Close())
 }
 
-func titler(titleCh chan<- string) {
+func emitTitles(titleCh chan<- string) {
 	windowER := i3.Subscribe(i3.WindowEventType)
 
 	for windowER.Next() {
@@ -153,7 +153,7 @@ func titler(titleCh chan<- string) {
 	log.Printf("WARNING: no more title event: %v", windowER.Close())
 }
 
-func liner(lineCh chan<- []byte) {
+func emitLines(lineCh chan<- []byte) {
 	// // DEBUG ////////////////////////////////////
 	// cmd := exec.Command("i3status")
 	// stdout, err := cmd.StdoutPipe()
@@ -197,7 +197,7 @@ func liner(lineCh chan<- []byte) {
 	}()
 }
 
-func messagePipe(messageCh chan<- []byte) {
+func emitMessages(messageCh chan<- []byte) {
 	if len(cnf.Pipe) == 0 {
 		close(messageCh)
 		return
