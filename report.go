@@ -157,7 +157,7 @@ func emitTitles(titleCh chan<- string) {
 	log.Printf("WARNING: no more title event: %v", windowER.Close())
 }
 
-// emitLines scans os.Stdin, which is presumed to be data coming from i3status,
+// emitLines scans [os.Stdin], which is presumed to be data coming from i3status,
 // and sends the data to channel.
 func emitLines(lineCh chan<- []byte) {
 	// // DEBUG ////////////////////////////////////
@@ -215,14 +215,17 @@ func emitMessages(messageCh chan<- []byte) {
 	// Create a new FIFO with 0600 permissions.
 	if err := syscall.Mkfifo(cnf.Pipe, 0600); err != nil {
 		log.Printf("creating pipe: %v", err)
+		close(messageCh)
 		return
 	}
 
 	fi, err := os.OpenFile(cnf.Pipe, os.O_RDWR, 0600)
 	if err != nil {
 		log.Printf("opening pipe: %v", err)
+		close(messageCh)
 		return
 	}
+	// NO defer fi.Close() here - it would close before goroutine finishes.
 
 	pipeScnr := bufio.NewScanner(fi)
 	// Set maximum buffer size.
@@ -230,6 +233,7 @@ func emitMessages(messageCh chan<- []byte) {
 	pipeScnr.Buffer(buf, 0)
 	if err := pipeScnr.Err(); err != nil {
 		log.Printf("init pipe scanner: %v", err)
+		close(messageCh)
 		return
 	}
 

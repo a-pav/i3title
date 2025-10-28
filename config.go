@@ -10,22 +10,20 @@ import (
 	"strings"
 )
 
-var (
-	// cnf is the Config struct.
-	cnf = struct {
-		BufSize   uint16   `json:"buffer_size"` // max: 65535, 64KB
-		PH        string   `json:"placeholder"`
-		PHIndex   int      `json:"placeholder_index"`
-		MaxWidth  int      `json:"max_width"`
-		ModeStyle string   `json:"mode_style"`
-		Pipe      string   `json:"pipe"` // FIFO pipe for sending messages to overwrite report.
-		OldNew    []string `json:"old_new"`
+// cnf is the Config struct.
+var cnf = struct {
+	BufSize   uint16   `json:"buffer_size"` // max: 65535, 64KB
+	PH        string   `json:"placeholder"`
+	PHIndex   int      `json:"placeholder_index"`
+	MaxWidth  int      `json:"max_width"`
+	ModeStyle string   `json:"mode_style"`
+	Pipe      string   `json:"pipe"` // FIFO pipe for sending messages to overwrite report.
+	OldNew    []string `json:"old_new"`
 
-		ModeStyleWidth int
-		ModeStyleIndex int
-		Replacer       *strings.Replacer
-	}{}
-)
+	ModeStyleWidth int
+	ModeStyleIndex int
+	Replacer       *strings.Replacer
+}{}
 
 func loadConfig() error {
 	// Read config file from current working directory.
