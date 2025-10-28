@@ -205,9 +205,9 @@ func emitMessages(messageCh chan<- []byte) {
 	// Remove any old pipe.
 	os.Remove(cnf.Pipe)
 	// Create a new FIFO with 0600 permissions.
-	err := syscall.Mkfifo(cnf.Pipe, 0600)
-	if err != nil {
-		panic(err)
+	if err := syscall.Mkfifo(cnf.Pipe, 0600); err != nil {
+		log.Printf("creating pipe: %v", err)
+		return
 	}
 
 	fi, err := os.OpenFile(cnf.Pipe, os.O_RDWR, 0600)
