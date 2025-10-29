@@ -25,12 +25,11 @@ func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 		report  = bbuf.New(cnf.MaxWidth * 5) // Outgoing report (Big enough buffer, even for Chinese characters.)
 		message []byte                       // Overwrites the report.
 	)
-	trimTitle := func(max int) {
+	trimTitle := func(max int) string {
 		if len(title0) <= max {
-			replacer(report, title0)
-			return
+			return title0
 		}
-
+		// Count the runes.
 		s := title1
 		i := 0
 		for _, r := range title0 {
@@ -43,14 +42,13 @@ func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 					s[n+1] = '…'
 					s = s[:n+2]
 				}
-				replacer(report, string(s)) // alloc
-				return
+				return string(s) // alloc
 			}
 			s[i] = r
 			i++
 		}
 
-		replacer(report, title0)
+		return title0
 	}
 	doPrint := func() {
 		i := cnf.PHIndex
@@ -79,7 +77,7 @@ func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 			report.WriteString(mode)
 			report.WriteString(cnf.ModeStyle[i+2:]) // 2 == len("%s")
 		}
-		trimTitle(cnf.MaxWidth - m)
+		report.WriteString(trimTitle(cnf.MaxWidth - m))
 
 		doPrint()
 	}
