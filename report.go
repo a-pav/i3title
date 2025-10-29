@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"io"
 	"log"
 	"os"
 	"syscall"
@@ -10,22 +11,56 @@ import (
 	"go.i3wm.org/i3/v4"
 )
 
+type basicBuffer struct {
+	buf []byte
+	end int
+}
+
+var (
+	_ io.Writer       = (*basicBuffer)(nil)
+	_ io.StringWriter = (*basicBuffer)(nil)
+)
+
+func newBasicBuffer(size int) *basicBuffer {
+	return &basicBuffer{
+		buf: make([]byte, size),
+	}
+}
+
+func (b *basicBuffer) Write(p []byte) (n int, err error) {
+	n = copy(b.buf[b.end:], p)
+	b.end += n
+	return n, nil
+}
+
+func (b *basicBuffer) WriteString(s string) (n int, err error) {
+	n = copy(b.buf[b.end:], s)
+	b.end += n
+	return n, nil
+}
+
+func (b *basicBuffer) Bytes() []byte { return b.buf[:b.end] }
+
+func (b *basicBuffer) Reset() { b.end = 0 }
+
 // reporter is the central event processor that consumes data from all channels
 // and handles the unified reporting logic.
 func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 	var (
-		line0     []byte                         // Incoming line from `i3status` stdout.
-		line1     = make([]byte, cnf.BufSize)    // Outgoing line with report in it.
-		mode      = "default"                    // Current i3 mode.
-		title0    string                         // Current window full title.
-		title1    = make([]rune, cnf.MaxWidth)   // Runes of current window title. Helps with rune counting and less allocation.
-		report    = make([]byte, cnf.MaxWidth*5) // Outgoing report (Big enough buffer, even for Chinese characters.)
-		reportEnd int                            // Tracks the end of report buffer.
-		message   []byte                         // Overwrites the report.
+		// report    = make([]byte, cnf.MaxWidth*5) // Outgoing report (Big enough buffer, even for Chinese characters.)
+		// reportEnd int                                // Tracks the end of report buffer.
+		line0   []byte                             // Incoming line from `i3status` stdout.
+		line1   = make([]byte, cnf.BufSize)        // Outgoing line with report in it.
+		mode    = "default"                        // Current i3 mode.
+		title0  string                             // Current window full title.
+		title1  = make([]rune, cnf.MaxWidth)       // Runes of current window title. Helps with rune counting and less allocation.
+		report  = newBasicBuffer(cnf.MaxWidth * 5) // Outgoing report (Big enough buffer, even for Chinese characters.)
+		message []byte                             // Overwrites the report.
 	)
-	trimTitle := func(max int) string {
+	trimTitle := func(max int) {
 		if len(title0) <= max {
-			return replacer(title0)
+			replacer(report, title0)
+			return
 		}
 
 		s := title1
@@ -40,13 +75,14 @@ func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 					s[n+1] = '…'
 					s = s[:n+2]
 				}
-				return replacer(string(s)) // alloc
+				replacer(report, string(s)) // alloc
+				return
 			}
 			s[i] = r
 			i++
 		}
 
-		return replacer(title0)
+		replacer(report, title0)
 	}
 	doPrint := func() {
 		i := cnf.PHIndex
@@ -55,7 +91,7 @@ func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 		}
 		c := 0
 		c += copy(line1[c:], line0[:i])
-		c += copy(line1[c:], report[:reportEnd])
+		c += copy(line1[c:], report.Bytes())
 		c += copy(line1[c:], line0[i+len(cnf.PH):])
 		c += copy(line1[c:], "\n")
 
@@ -65,20 +101,17 @@ func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 		if len(message) > 0 {
 			return // report doesn't update unless message is cleared.
 		}
-
-		c := 0
+		report.Reset()
 		m := 0 // mode visible length.
 		if mode != "default" {
 			m = len([]rune(mode)) + cnf.ModeStyleWidth
 
 			i := cnf.ModeStyleIndex
-			c += copy(report[c:], cnf.ModeStyle[:i])
-			c += copy(report[c:], mode)
-			c += copy(report[c:], cnf.ModeStyle[i+2:]) // 2 == len("%s")
+			report.WriteString(cnf.ModeStyle[:i])
+			report.WriteString(mode)
+			report.WriteString(cnf.ModeStyle[i+2:]) // 2 == len("%s")
 		}
-		c += copy(report[c:], trimTitle(cnf.MaxWidth-m))
-
-		reportEnd = c
+		trimTitle(cnf.MaxWidth - m)
 
 		doPrint()
 	}
@@ -87,9 +120,8 @@ func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 			newReport()
 			return
 		}
-		c := 0
-		c += copy(report[c:], message)
-		reportEnd = c
+		report.Reset()
+		report.Write(message)
 		doPrint()
 	}
 
@@ -249,9 +281,8 @@ func emitMessages(messageCh chan<- []byte) {
 	}()
 }
 
-func replacer(title string) string {
-	// This will be inlined.
-	return cnf.Replacer.Replace(title)
+func replacer(w io.Writer, s string) (int, error) {
+	return cnf.Replacer.WriteString(w, s)
 }
 
 // lastIndexNonSpace returns the index of last non-space character in s.
