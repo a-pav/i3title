@@ -158,18 +158,6 @@ func emitTitles(titleCh chan<- string) {
 // emitLines scans [os.Stdin], which is presumed to be data coming from i3status,
 // and sends the data to channel.
 func emitLines(lineCh chan<- []byte) {
-	// // DEBUG ////////////////////////////////////
-	// cmd := exec.Command("i3status")
-	// stdout, err := cmd.StdoutPipe()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// if err := cmd.Start(); err != nil {
-	// 	log.Fatal(err)
-	// }
-	// defer cmd.Process.Release()
-	// lineScnr := bufio.NewScanner(stdout)
-	// // DEBUG ////////////////////////////////////
 	lineScnr := bufio.NewScanner(os.Stdin)
 	// Set maximum buffer size.
 	buf := make([]byte, cnf.BufSize)
