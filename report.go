@@ -9,53 +9,21 @@ import (
 	"syscall"
 
 	"go.i3wm.org/i3/v4"
+
+	"pav.d/i3title/internal/bbuf"
 )
-
-type basicBuffer struct {
-	buf []byte
-	end int
-}
-
-var (
-	_ io.Writer       = (*basicBuffer)(nil)
-	_ io.StringWriter = (*basicBuffer)(nil)
-)
-
-func newBasicBuffer(size int) *basicBuffer {
-	return &basicBuffer{
-		buf: make([]byte, size),
-	}
-}
-
-func (b *basicBuffer) Write(p []byte) (n int, err error) {
-	n = copy(b.buf[b.end:], p)
-	b.end += n
-	return n, nil
-}
-
-func (b *basicBuffer) WriteString(s string) (n int, err error) {
-	n = copy(b.buf[b.end:], s)
-	b.end += n
-	return n, nil
-}
-
-func (b *basicBuffer) Bytes() []byte { return b.buf[:b.end] }
-
-func (b *basicBuffer) Reset() { b.end = 0 }
 
 // reporter is the central event processor that consumes data from all channels
 // and handles the unified reporting logic.
 func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 	var (
-		// report    = make([]byte, cnf.MaxWidth*5) // Outgoing report (Big enough buffer, even for Chinese characters.)
-		// reportEnd int                                // Tracks the end of report buffer.
-		line0   []byte                             // Incoming line from `i3status` stdout.
-		line1   = make([]byte, cnf.BufSize)        // Outgoing line with report in it.
-		mode    = "default"                        // Current i3 mode.
-		title0  string                             // Current window full title.
-		title1  = make([]rune, cnf.MaxWidth)       // Runes of current window title. Helps with rune counting and less allocation.
-		report  = newBasicBuffer(cnf.MaxWidth * 5) // Outgoing report (Big enough buffer, even for Chinese characters.)
-		message []byte                             // Overwrites the report.
+		line0   []byte                       // Incoming line from `i3status` stdout.
+		line1   = make([]byte, cnf.BufSize)  // Outgoing line with report in it.
+		mode    = "default"                  // Current i3 mode.
+		title0  string                       // Current window full title.
+		title1  = make([]rune, cnf.MaxWidth) // Runes of current window title. Helps with rune counting and less allocation.
+		report  = bbuf.New(cnf.MaxWidth * 5) // Outgoing report (Big enough buffer, even for Chinese characters.)
+		message []byte                       // Overwrites the report.
 	)
 	trimTitle := func(max int) {
 		if len(title0) <= max {
