@@ -1,4 +1,4 @@
-module pav.d/i3title
+module github.com/a-pav/i3title
 
 go 1.25.0
 

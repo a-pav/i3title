@@ -9,7 +9,7 @@ import (
 
 	"go.i3wm.org/i3/v4"
 
-	"pav.d/i3title/internal/bbuf"
+	"github.com/a-pav/i3title/internal/bbuf"
 )
 
 // reporter is the central event processor that consumes data from all channels
