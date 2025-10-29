@@ -3,7 +3,7 @@ package bbuf
 
 import "io"
 
-// basicBuffer is a fixed-sized buffer of bytes that does not grow after initialization.
+// basicBuffer is a fixed-size buffer of bytes that does not grow after initialization.
 // Implements [io.Writer] and [io.StringWriter]
 type basicBuffer struct {
 	buf []byte
@@ -22,14 +22,14 @@ func New(n int) *basicBuffer {
 	}
 }
 
-func (b *basicBuffer) Write(p []byte) (n int, err error) {
-	n = copy(b.buf[b.end:], p)
+func (b *basicBuffer) Write(p []byte) (int, error) {
+	n := copy(b.buf[b.end:], p)
 	b.end += n
 	return n, nil
 }
 
-func (b *basicBuffer) WriteString(s string) (n int, err error) {
-	n = copy(b.buf[b.end:], s)
+func (b *basicBuffer) WriteString(s string) (int, error) {
+	n := copy(b.buf[b.end:], s)
 	b.end += n
 	return n, nil
 }

@@ -16,6 +16,7 @@ import (
 // and handles the unified reporting logic.
 func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 	var (
+		LF      = []byte{'\n'}
 		line0   []byte                       // Incoming line from `i3status` stdout.
 		line1   = make([]byte, cnf.BufSize)  // Outgoing line with report in it.
 		mode    = "default"                  // Current i3 mode.
@@ -58,7 +59,7 @@ func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 		c += copy(line1[c:], line0[:i])
 		c += copy(line1[c:], report.Bytes())
 		c += copy(line1[c:], line0[i+len(cnf.PH):])
-		c += copy(line1[c:], "\n")
+		c += copy(line1[c:], LF)
 
 		os.Stdout.Write(line1[:c])
 	}
@@ -96,7 +97,7 @@ func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 
 		c := 0
 		c += copy(line1[c:], line0)
-		c += copy(line1[c:], "\n")
+		c += copy(line1[c:], LF)
 
 		os.Stdout.Write(line1[:c])
 	}
