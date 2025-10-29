@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"io"
 	"log"
 	"os"
 	"syscall"
@@ -77,7 +76,7 @@ func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 			report.WriteString(mode)
 			report.WriteString(cnf.ModeStyle[i+2:]) // 2 == len("%s")
 		}
-		report.WriteString(trimTitle(cnf.MaxWidth - m))
+		cnf.Replacer.WriteString(report, trimTitle(cnf.MaxWidth-m))
 
 		doPrint()
 	}
@@ -245,10 +244,6 @@ func emitMessages(messageCh chan<- []byte) {
 			log.Println("pipe scanner:", err)
 		}
 	}()
-}
-
-func replacer(w io.Writer, s string) (int, error) {
-	return cnf.Replacer.WriteString(w, s)
 }
 
 // lastIndexNonSpace returns the index of last non-space character in s.
