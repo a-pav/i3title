@@ -12,16 +12,16 @@ import (
 
 // cnf is the Config struct.
 var cnf = struct {
-	BufSize   uint16   `json:"buffer_size"` // max: 65535, 64KB
-	PH        string   `json:"placeholder"`
-	PHIndex   int      `json:"placeholder_index"`
-	MaxWidth  int      `json:"max_width"`
-	ModeStyle string   `json:"mode_style"`
-	Pipe      string   `json:"pipe"` // FIFO pipe for sending messages to overwrite report.
-	OldNew    []string `json:"old_new"`
+	BufSize   uint16   `json:"buffer_size"`       // Buffer size of both stdin scanner and stdout printer.
+	PH        string   `json:"placeholder"`       // Placerhoder that is defined in i3status config file.
+	PHIndex   int      `json:"placeholder_index"` // Index of placeholder in i3status output. Leaving it out causes re-calculation on each print.
+	MaxWidth  int      `json:"max_width"`         // Maximum width of printed report in characters.
+	ModeStyle string   `json:"mode_style"`        // Pango styling to be used for i3 modes.
+	Pipe      string   `json:"pipe"`              // FIFO named pipe for sending messages to overwrite the report.
+	OldNew    []string `json:"old_new"`           // List of old-new string pairs that will be used for the replacer.
 
-	ModeStyleWidth int
-	ModeStyleIndex int
+	ModeStyleWidth int // Width of characters that will be added to report as the result of wrapping i3 mode with ModeStyle.
+	ModeStyleIndex int // Index of string `%s` inside ModeStyle.
 	Replacer       *strings.Replacer
 }{}
 
@@ -52,7 +52,6 @@ func loadConfig() error {
 	if len(cnf.OldNew)%2 == 1 {
 		log.Println(`loadConfig: "old_new" list is ignored. odd number of arguments.`)
 	} else {
-		// Initialize strings.Replacer.
 		cnf.Replacer = strings.NewReplacer(cnf.OldNew...)
 	}
 
@@ -64,7 +63,7 @@ func discardConfig() {
 	cnf.OldNew = nil // release reference
 }
 
-// getwd returns the application's working directory.
+// getwd returns the executable working directory.
 func getwd() (string, error) {
 	exePath, err := os.Executable()
 	if err != nil {
