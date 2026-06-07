@@ -1,6 +1,6 @@
 module github.com/a-pav/i3title
 
-go 1.25.0
+go 1.26.4
 
 require go.i3wm.org/i3/v4 v4.21.0
 
