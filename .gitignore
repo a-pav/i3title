@@ -1,4 +1,4 @@
-i3title
-main
-*.out
+/i3title
+/main
+/*.out
 __debug_bin*

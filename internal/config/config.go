@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"encoding/json"
@@ -10,8 +10,8 @@ import (
 	"strings"
 )
 
-// cnf is the Config struct.
-var cnf = struct {
+// Config is the Config struct.
+type Config struct {
 	BufSize   uint16   `json:"buffer_size"`       // Buffer size of both stdin scanner and stdout printer.
 	PH        string   `json:"placeholder"`       // Placerhoder that is defined in i3status config file.
 	PHIndex   int      `json:"placeholder_index"` // Index of placeholder in i3status output. Leaving it out causes re-calculation on each print.
@@ -23,44 +23,45 @@ var cnf = struct {
 	ModeStyleWidth int // Width of characters that will be added to report as the result of wrapping i3 mode with ModeStyle.
 	ModeStyleIndex int // Index of string `%s` inside ModeStyle.
 	Replacer       *strings.Replacer
-}{}
+}
 
-func loadConfig() error {
+func Load() (*Config, error) {
+	config := Config{}
 	// Read config file from current working directory.
 	cwd, err := getwd()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	bs, err := os.ReadFile(cwd + "/config.json")
 	if err != nil {
-		return fmt.Errorf("opening config: %v", err)
+		return nil, fmt.Errorf("opening config: %v", err)
 	}
 	// Strip comments before decoding.
 	bs = regexp.MustCompile(`(?m)^\s*//.*$`).ReplaceAll(bs, nil)
 
-	if err := json.Unmarshal(bs, &cnf); err != nil {
-		return fmt.Errorf("reading config: %v", err)
+	if err := json.Unmarshal(bs, &config); err != nil {
+		return nil, fmt.Errorf("reading config: %v", err)
 	}
-	defer discardConfig()
+	defer discard(&config)
 
 	// Strip styling tags, attrs and and any char that doesn't add to the width.
-	raw := regexp.MustCompile("</?[^>]+>").ReplaceAllString(cnf.ModeStyle, "")
-	cnf.ModeStyleWidth = len([]rune(raw)) - len("%s")
+	raw := regexp.MustCompile("</?[^>]+>").ReplaceAllString(config.ModeStyle, "")
+	config.ModeStyleWidth = len([]rune(raw)) - len("%s")
 
-	cnf.ModeStyleIndex = strings.Index(cnf.ModeStyle, "%s")
+	config.ModeStyleIndex = strings.Index(config.ModeStyle, "%s")
 
-	if len(cnf.OldNew)%2 == 1 {
+	if len(config.OldNew)%2 == 1 {
 		log.Println(`loadConfig: "old_new" list is ignored. odd number of arguments.`)
 	} else {
-		cnf.Replacer = strings.NewReplacer(cnf.OldNew...)
+		config.Replacer = strings.NewReplacer(config.OldNew...)
 	}
 
-	return nil
+	return &config, nil
 }
 
-// discardConfig discards parts of the config that are no longer needed.
-func discardConfig() {
-	cnf.OldNew = nil // release reference
+// discard discards parts of the config that are no longer needed.
+func discard(c *Config) {
+	c.OldNew = nil // release reference
 }
 
 // getwd returns the executable working directory.

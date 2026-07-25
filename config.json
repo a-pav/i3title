@@ -1,3 +1,4 @@
+// Note: Only leading comments are allowed in this file.
 {
     "buffer_size": 1600,
     "placeholder": "I3TITLE",
@@ -8,8 +9,9 @@
     "old_new": [
         // To test, use zenity like:
         //      zenity --info --title="~\!@#$%^&*()_+-=[]{}|\;:'\"<>?,./\`"
-        // https://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references
-        // https://en.wikipedia.org/wiki/Numeric_character_reference
+        // Escaping references:
+        //      https://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references
+        //      https://en.wikipedia.org/wiki/Numeric_character_reference
         "&",
         "&amp;",
 

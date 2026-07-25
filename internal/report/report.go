@@ -1,4 +1,4 @@
-package main
+package report
 
 import (
 	"bufio"
@@ -10,20 +10,54 @@ import (
 	"go.i3wm.org/i3/v4"
 
 	"github.com/a-pav/i3title/internal/bbuf"
+	"github.com/a-pav/i3title/internal/config"
 )
+
+func Run(cfg *config.Config) error {
+	var (
+		lineCh    = make(chan []byte)
+		messageCh = make(chan []byte)
+		titleCh   = make(chan string)
+		modeCh    = make(chan string)
+	)
+	go reporter(cfg, lineCh, messageCh, titleCh, modeCh)
+
+	emitLines(cfg.BufSize, lineCh)
+
+	if cfg.Pipe == "" {
+		close(messageCh)
+	} else {
+		emitMessages(cfg.Pipe, cfg.MaxWidth*5, messageCh)
+	}
+
+	go emitTitles(titleCh)
+
+	if cfg.ModeStyleIndex < 0 {
+		close(modeCh)
+	} else {
+		go emitModes(modeCh)
+	}
+
+	return nil
+}
 
 // reporter is the central event processor that consumes data from all channels
 // and handles the unified reporting logic.
-func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
+func reporter(cfg *config.Config, lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 	var (
-		LF      = []byte{'\n'}
-		line0   []byte                       // Incoming line from `i3status` stdout.
-		line1   = make([]byte, cnf.BufSize)  // Outgoing line with report in it.
-		mode    = "default"                  // Current i3 mode.
-		title0  string                       // Current window full title.
-		title1  = make([]rune, cnf.MaxWidth) // Runes of current window title. Helps with rune counting and less allocation.
-		report  = bbuf.New(cnf.MaxWidth * 5) // Outgoing report (Big enough buffer, even for Chinese characters.)
-		message []byte                       // Overwrites the report.
+		report = bbuf.New(cfg.MaxWidth * 5) // Outgoing report (Big enough buffer, even for all-Chinese characters.)
+
+		line0 []byte                      // Incoming line from `i3status` stdout.
+		line1 = make([]byte, cfg.BufSize) // Outgoing line with report in it.
+
+		title0 string                       // Current window full title.
+		title1 = make([]rune, cfg.MaxWidth) // Runes of current window title; Helps with rune counting and avoiding allocation.
+
+		mode = "default" // Current i3 mode.
+
+		message []byte // Overwrites the `report`.
+
+		LF = []byte{'\n'}
 	)
 	trimTitle := func(max int) string {
 		if len(title0) <= max {
@@ -51,14 +85,14 @@ func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 		return title0
 	}
 	doPrint := func() {
-		i := cnf.PHIndex
+		i := cfg.PHIndex
 		if i <= 0 {
-			i = bytes.Index(line0, []byte(cnf.PH))
+			i = bytes.Index(line0, []byte(cfg.PH))
 		}
 		c := 0
 		c += copy(line1[c:], line0[:i])
 		c += copy(line1[c:], report.Bytes())
-		c += copy(line1[c:], line0[i+len(cnf.PH):])
+		c += copy(line1[c:], line0[i+len(cfg.PH):])
 		c += copy(line1[c:], LF)
 
 		os.Stdout.Write(line1[:c])
@@ -70,14 +104,14 @@ func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 		report.Reset()
 		m := 0 // mode visible length.
 		if mode != "default" {
-			m = len([]rune(mode)) + cnf.ModeStyleWidth
+			m = len([]rune(mode)) + cfg.ModeStyleWidth
 
-			i := cnf.ModeStyleIndex
-			report.WriteString(cnf.ModeStyle[:i])
+			i := cfg.ModeStyleIndex
+			report.WriteString(cfg.ModeStyle[:i])
 			report.WriteString(mode)
-			report.WriteString(cnf.ModeStyle[i+2:]) // 2 == len("%s")
+			report.WriteString(cfg.ModeStyle[i+2:]) // 2 == len("%s")
 		}
-		cnf.Replacer.WriteString(report, trimTitle(cnf.MaxWidth-m))
+		cfg.Replacer.WriteString(report, trimTitle(cfg.MaxWidth-m))
 
 		doPrint()
 	}
@@ -127,10 +161,6 @@ func reporter(lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
 
 // emitModes subscribes to i3 mode events and sends the modes to channel.
 func emitModes(modeCh chan<- string) {
-	if cnf.ModeStyleIndex < 0 {
-		close(modeCh)
-		return
-	}
 	modeER := i3.Subscribe(i3.ModeEventType)
 
 	for modeER.Next() {
@@ -157,10 +187,10 @@ func emitTitles(titleCh chan<- string) {
 
 // emitLines scans [os.Stdin], which is presumed to be data coming from i3status,
 // and sends the data to channel.
-func emitLines(lineCh chan<- []byte) {
+func emitLines(bufferSize uint16, lineCh chan<- []byte) {
 	lineScnr := bufio.NewScanner(os.Stdin)
 	// Set maximum buffer size.
-	buf := make([]byte, cnf.BufSize)
+	buf := make([]byte, bufferSize)
 	lineScnr.Buffer(buf, 0)
 	if err := lineScnr.Err(); err != nil {
 		log.Printf("init line scanner: %v", err)
@@ -191,21 +221,17 @@ func emitLines(lineCh chan<- []byte) {
 
 // emitMessages reads from the named pipe at config.Pipe path and sends the data
 // to channel.
-func emitMessages(messageCh chan<- []byte) {
-	if len(cnf.Pipe) == 0 {
-		close(messageCh)
-		return
-	}
+func emitMessages(pipe string, msgMaxWidth int, messageCh chan<- []byte) {
 	// Remove any old pipe.
-	os.Remove(cnf.Pipe)
+	os.Remove(pipe)
 	// Create a new FIFO with 0600 permissions.
-	if err := syscall.Mkfifo(cnf.Pipe, 0600); err != nil {
+	if err := syscall.Mkfifo(pipe, 0600); err != nil {
 		log.Printf("creating pipe: %v", err)
 		close(messageCh)
 		return
 	}
 
-	fi, err := os.OpenFile(cnf.Pipe, os.O_RDWR, 0600)
+	fi, err := os.OpenFile(pipe, os.O_RDWR, 0600)
 	if err != nil {
 		log.Printf("opening pipe: %v", err)
 		close(messageCh)
@@ -215,7 +241,7 @@ func emitMessages(messageCh chan<- []byte) {
 
 	pipeScnr := bufio.NewScanner(fi)
 	// Set maximum buffer size.
-	buf := make([]byte, cnf.MaxWidth*5)
+	buf := make([]byte, msgMaxWidth)
 	pipeScnr.Buffer(buf, 0)
 	if err := pipeScnr.Err(); err != nil {
 		log.Printf("init pipe scanner: %v", err)
