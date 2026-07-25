@@ -43,7 +43,10 @@ func Run(cfg *config.Config) error {
 
 // reporter is the central event processor that consumes data from all channels
 // and handles the unified reporting logic.
-func reporter(cfg *config.Config, lineCh, messageCh <-chan []byte, titleCh, modeCh <-chan string) {
+func reporter(cfg *config.Config,
+	lineCh, messageCh <-chan []byte,
+	titleCh, modeCh <-chan string,
+) {
 	var (
 		report = bbuf.New(cfg.MaxWidth * 5) // Outgoing report (Big enough buffer, even for all-Chinese characters.)
 
@@ -88,6 +91,13 @@ func reporter(cfg *config.Config, lineCh, messageCh <-chan []byte, titleCh, mode
 		i := cfg.PHIndex
 		if i <= 0 {
 			i = bytes.Index(line0, []byte(cfg.PH))
+			if cfg.PHIndex == 0 { // omited? then cache it.
+				// Why i+1? Because the first line does not have a comma at its
+				// beginning, but the rest do.
+				cfg.PHIndex = i + 1
+			} else {
+				// forced to recalculate.
+			}
 		}
 		c := 0
 		c += copy(line1[c:], line0[:i])
@@ -221,7 +231,7 @@ func emitLines(bufferSize uint16, lineCh chan<- []byte) {
 
 // emitMessages reads from the named pipe at config.Pipe path and sends the data
 // to channel.
-func emitMessages(pipe string, msgMaxWidth int, messageCh chan<- []byte) {
+func emitMessages(pipe string, bufferSize int, messageCh chan<- []byte) {
 	// Remove any old pipe.
 	os.Remove(pipe)
 	// Create a new FIFO with 0600 permissions.
@@ -241,7 +251,7 @@ func emitMessages(pipe string, msgMaxWidth int, messageCh chan<- []byte) {
 
 	pipeScnr := bufio.NewScanner(fi)
 	// Set maximum buffer size.
-	buf := make([]byte, msgMaxWidth)
+	buf := make([]byte, bufferSize)
 	pipeScnr.Buffer(buf, 0)
 	if err := pipeScnr.Err(); err != nil {
 		log.Printf("init pipe scanner: %v", err)

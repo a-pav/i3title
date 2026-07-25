@@ -13,14 +13,14 @@ import (
 // Config is the Config struct.
 type Config struct {
 	BufSize   uint16   `json:"buffer_size"`       // Buffer size of both stdin scanner and stdout printer.
-	PH        string   `json:"placeholder"`       // Placerhoder that is defined in i3status config file.
-	PHIndex   int      `json:"placeholder_index"` // Index of placeholder in i3status output. Leaving it out causes re-calculation on each print.
+	PH        string   `json:"placeholder"`       // Placerhoder that is defined in i3status config file. (default: I3TITLE)
+	PHIndex   int      `json:"placeholder_index"` // Index of placeholder in i3status output. To force recalculation on each print, explicitly set to -1.
 	MaxWidth  int      `json:"max_width"`         // Maximum width of printed report in characters.
 	ModeStyle string   `json:"mode_style"`        // Pango styling to be used for i3 modes.
 	Pipe      string   `json:"pipe"`              // FIFO named pipe for sending messages to overwrite the report.
 	OldNew    []string `json:"old_new"`           // List of old-new string pairs that will be used for the replacer.
 
-	ModeStyleWidth int // Width of characters that will be added to report as the result of wrapping i3 mode with ModeStyle.
+	ModeStyleWidth int // Width of characters that will be added to report as the result of wrapping raw i3 mode in ModeStyle.
 	ModeStyleIndex int // Index of string `%s` inside ModeStyle.
 	Replacer       *strings.Replacer
 }
@@ -43,6 +43,10 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("reading config: %v", err)
 	}
 	defer discard(&config)
+
+	if config.PH == "" {
+		config.PH = "I3TITLE" // default placeholder.
+	}
 
 	// Strip styling tags, attrs and and any char that doesn't add to the width.
 	raw := regexp.MustCompile("</?[^>]+>").ReplaceAllString(config.ModeStyle, "")
