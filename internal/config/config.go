@@ -26,19 +26,18 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
-	config := Config{}
-	// Read config file from current working directory.
-	cwd, err := getwd()
+	path, err := getConfigPath()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("config: %s", err)
 	}
-	bs, err := os.ReadFile(cwd + "/config.json")
+	bs, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("opening config: %v", err)
 	}
 	// Strip comments before decoding.
 	bs = regexp.MustCompile(`(?m)^\s*//.*$`).ReplaceAll(bs, nil)
 
+	config := Config{}
 	if err := json.Unmarshal(bs, &config); err != nil {
 		return nil, fmt.Errorf("reading config: %v", err)
 	}
@@ -60,12 +59,72 @@ func Load() (*Config, error) {
 		config.Replacer = strings.NewReplacer(config.OldNew...)
 	}
 
+	log.Printf("config: loaded from: %s", path)
+
 	return &config, nil
 }
 
 // discard discards parts of the config that are no longer needed.
 func discard(c *Config) {
 	c.OldNew = nil // release reference
+}
+
+func getConfigPath() (string, error) {
+	path, provided, err := configPathFromArgs()
+	if provided {
+		if err != nil {
+			return "", err
+		}
+		return path, fileExists(path)
+	}
+
+	if path := os.Getenv("I3TITLE_CONFIG"); path != "" {
+		return path, fileExists(path)
+	}
+
+	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
+		path := filepath.Join(xdg, "i3title/config.json")
+		if err := fileExists(path); err == nil {
+			return path, nil
+		}
+	}
+
+	if home, err := os.UserHomeDir(); err == nil {
+		path := filepath.Join(home, ".config/i3title/config.json")
+		if err := fileExists(path); err == nil {
+			return path, nil
+		}
+	}
+
+	// Read config file from current working directory.
+	if cwd, err := getwd(); err == nil {
+		path := filepath.Join(cwd, "config.json")
+		if err := fileExists(path); err == nil {
+			return path, nil
+		}
+	}
+
+	return "", fmt.Errorf("failed to get config path.")
+}
+
+func configPathFromArgs() (path string, provided bool, err error) {
+	args := os.Args
+	for i, arg := range args {
+		switch arg {
+		case "-c", "-config", "--config":
+			if i+1 < len(args) {
+				return args[i+1], true, nil
+			}
+			return "", true, fmt.Errorf("%q flag is present but no path is provided", arg)
+		}
+		if strings.HasPrefix(arg, "-config=") {
+			return strings.TrimPrefix(arg, "-config="), true, nil
+		}
+		if strings.HasPrefix(arg, "--config=") {
+			return strings.TrimPrefix(arg, "--config="), true, nil
+		}
+	}
+	return "", false, nil
 }
 
 // getwd returns the executable working directory.
@@ -81,4 +140,23 @@ func getwd() (string, error) {
 	}
 
 	return filepath.Dir(exeRealpath), nil
+}
+
+// fileExists returns nil if the file path exists and is a regular file. Otherwise
+// it returns a non-nil error explaining why.
+func fileExists(path string) error {
+	if path == "" {
+		return fmt.Errorf("file path is empty")
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("%s is not a regular file (mode: %v)", path, info.Mode())
+	}
+
+	return nil // File exists and is regular
 }
