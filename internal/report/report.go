@@ -112,19 +112,18 @@ func reporter(cfg *config.Config,
 			return // report doesn't update unless message is cleared.
 		}
 		report.Reset()
-		m := 0 // mode visible length.
-		if mode != "default" {
-			m = len([]rune(mode)) + cfg.ModeStyleWidth
+		mw := 0 // mode visible width.
+		if i := cfg.ModeStyleIndex; i >= 0 && mode != "default" {
+			mw = len([]rune(mode)) + cfg.ModeStyleWidth
 
-			i := cfg.ModeStyleIndex
 			report.WriteString(cfg.ModeStyle[:i])
 			report.WriteString(mode)
 			report.WriteString(cfg.ModeStyle[i+2:]) // 2 == len("%s")
 		}
 		if r := cfg.Replacer; r != nil {
-			r.WriteString(report, trimTitle(cfg.MaxWidth-m))
+			r.WriteString(report, trimTitle(cfg.MaxWidth-mw))
 		} else {
-			report.WriteString(trimTitle(cfg.MaxWidth - m))
+			report.WriteString(trimTitle(cfg.MaxWidth - mw))
 		}
 
 		doPrint()

@@ -25,18 +25,41 @@ type Config struct {
 	Replacer       *strings.Replacer `json:"-"`
 }
 
+// newConfig return a usable config.
+func newConfig() *Config {
+	return &Config{
+		PH:             "I3TITLE",
+		BufSize:        3000, // more than it's necessary
+		MaxWidth:       60,   // less than it's possible
+		ModeStyleIndex: -1,   // disable mode capturing
+		OldNew: []string{
+			"&", "&amp;",
+
+			">", "&gt;",
+
+			"<", "&lt;",
+
+			"\"", "&#34;", // "&#34;" is shorter than "&quot;".
+
+			"\\", "&#92;", // "&#92;" is shorter than "&Backslash;", or anything else.
+		},
+	}
+}
+
 func Load() (*Config, error) {
+	cfg := newConfig()
 	path, err := getPath()
 	if err != nil {
-		return nil, fmt.Errorf("config: %s", err)
+		log.Printf("config: %s", err)
+		return cfg, nil
 	}
 
-	cfg := Config{}
-	if err := read(path, &cfg); err != nil {
+	if err := read(path, cfg); err != nil {
 		return nil, err
 	}
-	ensureUsable(&cfg)
-	defer discard(&cfg)
+	defer discard(cfg)
+
+	log.Printf("config: loaded from: %s", path)
 
 	if i := strings.Index(cfg.ModeStyle, "%s"); i >= 0 {
 		cfg.ModeStyleIndex = i
@@ -51,11 +74,9 @@ func Load() (*Config, error) {
 		log.Println(`config: load: ignored "old_new" list: zero or odd argument count`)
 	}
 
-	log.Printf("config: loaded from: %s", path)
+	dump(cfg)
 
-	dump(&cfg)
-
-	return &cfg, nil
+	return cfg, nil
 }
 
 func read(path string, cfg *Config) error {
@@ -71,33 +92,6 @@ func read(path string, cfg *Config) error {
 	}
 
 	return nil
-}
-
-// ensureUsable assigns conservative defaults to unset config fields that require
-// a value.
-func ensureUsable(cfg *Config) {
-	if cfg.PH == "" {
-		cfg.PH = "I3TITLE"
-	}
-	if cfg.BufSize <= 0 {
-		cfg.BufSize = 3000 // more than it's necessary
-	}
-	if cfg.MaxWidth <= 0 {
-		cfg.MaxWidth = 60 // less than it's possible
-	}
-	if cfg.OldNew == nil {
-		cfg.OldNew = []string{
-			"&", "&amp;",
-
-			">", "&gt;",
-
-			"<", "&lt;",
-
-			"\"", "&#34;", // "&#34;" is shorter than "&quot;".
-
-			"\\", "&#92;", // "&#92;" is shorter than "&Backslash;", or anything else.
-		}
-	}
 }
 
 // dump dumps the config into the user config directory if the file doesn't
@@ -169,7 +163,7 @@ func getPath() (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("failed to get config path.")
+	return "", fmt.Errorf("failed to get config path")
 }
 
 func pathFromArgs() (path string, provided bool, err error) {
