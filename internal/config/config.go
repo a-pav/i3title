@@ -20,9 +20,9 @@ type Config struct {
 	Pipe      string   `json:"pipe"`              // FIFO named pipe for sending messages to overwrite the report.
 	OldNew    []string `json:"old_new"`           // List of old-new string pairs that will be used for the replacer.
 
-	ModeStyleWidth int // Width of characters that will be added to report as the result of wrapping raw i3 mode in ModeStyle.
-	ModeStyleIndex int // Index of string `%s` inside ModeStyle.
-	Replacer       *strings.Replacer
+	ModeStyleWidth int               `json:"-"` // Width of characters that will be added to report as the result of wrapping raw i3 mode in ModeStyle.
+	ModeStyleIndex int               `json:"-"` // Index of string `%s` inside ModeStyle.
+	Replacer       *strings.Replacer `json:"-"`
 }
 
 func Load() (*Config, error) {
@@ -60,8 +60,43 @@ func Load() (*Config, error) {
 	}
 
 	log.Printf("config: loaded from: %s", path)
+	dumpConfig(&config)
 
 	return &config, nil
+}
+
+// dumpConfig dumps the config into the user config directory if the file doesn't
+// exist already.
+func dumpConfig(cfg *Config) {
+	ucd, err := os.UserConfigDir()
+	if err != nil {
+		log.Printf("config: dump: os.UserConfigDir(): %s", err)
+		return
+	}
+	dir := filepath.Join(ucd, "i3title")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		log.Printf("config: dump: os.MkdirAll(): %s", err)
+		return
+	}
+	path := filepath.Join(dir, "config.json")
+	if err := fileExists(path); err == nil {
+		return
+	}
+
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Printf("config: dump: %s", err)
+		return
+	}
+	defer f.Close()
+
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", "\t")
+	enc.SetEscapeHTML(false)
+
+	if err := enc.Encode(cfg); err != nil {
+		log.Printf("config: dump: failed to write %q: %v", path, err)
+	}
 }
 
 // discard discards parts of the config that are no longer needed.
@@ -82,15 +117,8 @@ func getConfigPath() (string, error) {
 		return path, fileExists(path)
 	}
 
-	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-		path := filepath.Join(xdg, "i3title/config.json")
-		if err := fileExists(path); err == nil {
-			return path, nil
-		}
-	}
-
-	if home, err := os.UserHomeDir(); err == nil {
-		path := filepath.Join(home, ".config/i3title/config.json")
+	if ucd, err := os.UserConfigDir(); err == nil {
+		path := filepath.Join(ucd, "i3title/config.json")
 		if err := fileExists(path); err == nil {
 			return path, nil
 		}
