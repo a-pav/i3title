@@ -26,48 +26,83 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
-	path, err := getConfigPath()
+	path, err := getPath()
 	if err != nil {
 		return nil, fmt.Errorf("config: %s", err)
 	}
+
+	cfg := Config{}
+	if err := read(path, &cfg); err != nil {
+		return nil, err
+	}
+	ensureUsable(&cfg)
+	defer discard(&cfg)
+
+	if i := strings.Index(cfg.ModeStyle, "%s"); i >= 0 {
+		cfg.ModeStyleIndex = i
+		// Strip any char that doesn't add to the width.
+		raw := regexp.MustCompile("</?[^>]+>").ReplaceAllString(cfg.ModeStyle, "")
+		cfg.ModeStyleWidth = len([]rune(raw)) - len("%s")
+	}
+
+	if ln := len(cfg.OldNew); ln > 0 && ln%2 == 0 {
+		cfg.Replacer = strings.NewReplacer(cfg.OldNew...)
+	} else {
+		log.Println(`config: load: ignoring "old_new" list. odd number of arguments.`)
+	}
+
+	log.Printf("config: loaded from: %s", path)
+
+	dump(&cfg)
+
+	return &cfg, nil
+}
+
+func read(path string, cfg *Config) error {
 	bs, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("opening config: %v", err)
+		return fmt.Errorf("config: read: %v", err)
 	}
 	// Strip comments before decoding.
 	bs = regexp.MustCompile(`(?m)^\s*//.*$`).ReplaceAll(bs, nil)
 
-	config := Config{}
-	if err := json.Unmarshal(bs, &config); err != nil {
-		return nil, fmt.Errorf("reading config: %v", err)
-	}
-	defer discard(&config)
-
-	if config.PH == "" {
-		config.PH = "I3TITLE" // default placeholder.
+	if err := json.Unmarshal(bs, cfg); err != nil {
+		return fmt.Errorf("config: read: %v", err)
 	}
 
-	// Strip styling tags, attrs and and any char that doesn't add to the width.
-	raw := regexp.MustCompile("</?[^>]+>").ReplaceAllString(config.ModeStyle, "")
-	config.ModeStyleWidth = len([]rune(raw)) - len("%s")
-
-	config.ModeStyleIndex = strings.Index(config.ModeStyle, "%s")
-
-	if len(config.OldNew)%2 == 1 {
-		log.Println(`loadConfig: "old_new" list is ignored. odd number of arguments.`)
-	} else {
-		config.Replacer = strings.NewReplacer(config.OldNew...)
-	}
-
-	log.Printf("config: loaded from: %s", path)
-	dumpConfig(&config)
-
-	return &config, nil
+	return nil
 }
 
-// dumpConfig dumps the config into the user config directory if the file doesn't
+// ensureUsable assigns conservative defaults to unset config fields that require
+// a value.
+func ensureUsable(cfg *Config) {
+	if cfg.PH == "" {
+		cfg.PH = "I3TITLE"
+	}
+	if cfg.BufSize <= 0 {
+		cfg.BufSize = 3000 // more than it's necessary
+	}
+	if cfg.MaxWidth <= 0 {
+		cfg.MaxWidth = 60 // less than it's possible
+	}
+	if cfg.OldNew == nil {
+		cfg.OldNew = []string{
+			"&", "&amp;",
+
+			">", "&gt;",
+
+			"<", "&lt;",
+
+			"\"", "&#34;", // "&#34;" is shorter than "&quot;".
+
+			"\\", "&#92;", // "&#92;" is shorter than "&Backslash;", or anything else.
+		}
+	}
+}
+
+// dump dumps the config into the user config directory if the file doesn't
 // exist already.
-func dumpConfig(cfg *Config) {
+func dump(cfg *Config) {
 	ucd, err := os.UserConfigDir()
 	if err != nil {
 		log.Printf("config: dump: os.UserConfigDir(): %s", err)
@@ -95,7 +130,9 @@ func dumpConfig(cfg *Config) {
 	enc.SetEscapeHTML(false)
 
 	if err := enc.Encode(cfg); err != nil {
-		log.Printf("config: dump: failed to write %q: %v", path, err)
+		log.Printf("config: dump: failed to write: %v", err)
+	} else {
+		log.Printf("config: dump: created at: %s", path)
 	}
 }
 
@@ -104,8 +141,8 @@ func discard(c *Config) {
 	c.OldNew = nil // release reference
 }
 
-func getConfigPath() (string, error) {
-	path, provided, err := configPathFromArgs()
+func getPath() (string, error) {
+	path, provided, err := pathFromArgs()
 	if provided {
 		if err != nil {
 			return "", err
@@ -135,7 +172,7 @@ func getConfigPath() (string, error) {
 	return "", fmt.Errorf("failed to get config path.")
 }
 
-func configPathFromArgs() (path string, provided bool, err error) {
+func pathFromArgs() (path string, provided bool, err error) {
 	args := os.Args
 	for i, arg := range args {
 		switch arg {
