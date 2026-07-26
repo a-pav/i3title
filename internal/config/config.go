@@ -48,6 +48,11 @@ func newConfig() *Config {
 
 func Load() (*Config, error) {
 	cfg := newConfig()
+	defer func() {
+		dump(cfg)
+		discard(cfg)
+	}()
+
 	path, err := getPath()
 	if err != nil {
 		log.Printf("config: %s", err)
@@ -57,7 +62,6 @@ func Load() (*Config, error) {
 	if err := read(path, cfg); err != nil {
 		return nil, err
 	}
-	defer discard(cfg)
 
 	log.Printf("config: loaded from: %s", path)
 
@@ -73,8 +77,6 @@ func Load() (*Config, error) {
 	} else {
 		log.Println(`config: load: ignored "old_new" list: zero or odd argument count`)
 	}
-
-	dump(cfg)
 
 	return cfg, nil
 }
