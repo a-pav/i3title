@@ -97,24 +97,22 @@ func read(path string, cfg *Config) error {
 // dump dumps the config into the user config directory if the file doesn't
 // exist already.
 func dump(cfg *Config) {
-	ucd, err := os.UserConfigDir()
+	dir, err := os.UserConfigDir()
 	if err != nil {
 		log.Printf("config: dump: os.UserConfigDir(): %s", err)
 		return
 	}
-	dir := filepath.Join(ucd, "i3title")
+	dir += "/i3title"
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		log.Printf("config: dump: os.MkdirAll(): %s", err)
 		return
 	}
-	path := filepath.Join(dir, "config.json")
-	if err := fileExists(path); err == nil {
-		return
-	}
-
+	path := dir + "/config.json"
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Printf("config: dump: %s", err)
+		if !os.IsExist(err) {
+			log.Printf("config: dump: %s", err)
+		}
 		return
 	}
 	defer f.Close()
