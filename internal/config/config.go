@@ -48,7 +48,7 @@ func Load() (*Config, error) {
 	if ln := len(cfg.OldNew); ln > 0 && ln%2 == 0 {
 		cfg.Replacer = strings.NewReplacer(cfg.OldNew...)
 	} else {
-		log.Println(`config: load: ignoring "old_new" list. odd number of arguments.`)
+		log.Println(`config: load: ignored "old_new" list: zero or odd argument count`)
 	}
 
 	log.Printf("config: loaded from: %s", path)

@@ -121,7 +121,11 @@ func reporter(cfg *config.Config,
 			report.WriteString(mode)
 			report.WriteString(cfg.ModeStyle[i+2:]) // 2 == len("%s")
 		}
-		cfg.Replacer.WriteString(report, trimTitle(cfg.MaxWidth-m))
+		if r := cfg.Replacer; r != nil {
+			r.WriteString(report, trimTitle(cfg.MaxWidth-m))
+		} else {
+			report.WriteString(trimTitle(cfg.MaxWidth - m))
+		}
 
 		doPrint()
 	}
