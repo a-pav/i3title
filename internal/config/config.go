@@ -28,10 +28,9 @@ type Config struct {
 // newConfig return a usable config.
 func newConfig() *Config {
 	return &Config{
-		PH:             "I3TITLE",
-		BufSize:        3000, // more than it's necessary
-		MaxWidth:       60,   // less than it's possible
-		ModeStyleIndex: -1,   // disable mode capturing
+		PH:       "I3TITLE",
+		BufSize:  3000, // more than it's necessary
+		MaxWidth: 60,   // less than it's possible
 		OldNew: []string{
 			"&", "&amp;",
 
@@ -53,23 +52,22 @@ func Load() (*Config, error) {
 		discard(cfg)
 	}()
 
-	path, err := getPath()
-	if err != nil {
+	if path, err := getPath(); err != nil {
 		log.Printf("config: %s", err)
-		return cfg, nil
+	} else {
+		if err := read(path, cfg); err != nil {
+			return nil, err
+		}
+		log.Printf("config: loaded from: %s", path)
 	}
-
-	if err := read(path, cfg); err != nil {
-		return nil, err
-	}
-
-	log.Printf("config: loaded from: %s", path)
 
 	if i := strings.Index(cfg.ModeStyle, "%s"); i >= 0 {
 		cfg.ModeStyleIndex = i
 		// Strip any char that doesn't add to the width.
 		raw := regexp.MustCompile("</?[^>]+>").ReplaceAllString(cfg.ModeStyle, "")
 		cfg.ModeStyleWidth = len([]rune(raw)) - len("%s")
+	} else {
+		cfg.ModeStyleIndex = i
 	}
 
 	if ln := len(cfg.OldNew); ln > 0 && ln%2 == 0 {
