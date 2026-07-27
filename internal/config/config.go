@@ -161,8 +161,7 @@ func discard(c *Config) {
 }
 
 func getPath() (string, error) {
-	path, provided, err := pathFromArgs()
-	if provided {
+	if path, provided, err := pathFromArgs(); provided {
 		if err != nil {
 			return "", err
 		}
@@ -173,16 +172,16 @@ func getPath() (string, error) {
 		return path, fileExists(path)
 	}
 
-	if ucd, err := os.UserConfigDir(); err == nil {
-		path := filepath.Join(ucd, "i3title/config.json")
+	if path, err := os.UserConfigDir(); err == nil {
+		path += "/i3title/config.json"
 		if err := fileExists(path); err == nil {
 			return path, nil
 		}
 	}
 
 	// Read config file from current working directory.
-	if cwd, err := getwd(); err == nil {
-		path := filepath.Join(cwd, "config.json")
+	if path, err := getwd(); err == nil {
+		path += "/config.json"
 		if err := fileExists(path); err == nil {
 			return path, nil
 		}
