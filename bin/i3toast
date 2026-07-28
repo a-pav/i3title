@@ -1,0 +1,128 @@
+#!/bin/sh
+
+# shellcheck disable=3043 # allow 'local' keyword In POSIX sh
+
+readonly RUN_DIR='/dev/shm/i3toast'
+readonly ERASE_PID="$RUN_DIR/erase.pid"
+readonly QUEUE_PIDS="$RUN_DIR/queue.pids"
+
+setup_env() {
+	# shellcheck source=/dev/null
+	if [ -n "$XDG_CONFIG_HOME" ]; then
+		. "$XDG_CONFIG_HOME/i3title/.env"
+	elif [ -n "$HOME" ]; then
+		. "$HOME/.config/i3title/.env"
+	fi
+
+	: "${I3TITLE_PIPE:?}"
+	: "${I3TITLE_MAX_WIDTH:?}"
+
+	if [ ! -d "$RUN_DIR" ]; then
+		mkdir -p "$RUN_DIR"
+		touch "$QUEUE_PIDS"
+	fi
+}
+
+send() {
+	if [ -n "$format" ]; then
+		local esc_msg
+		esc_msg="$(printf '%s' "$message" | sed 's/[&/\]/\\&/g')"
+		message="$(printf '%s' "$format" | sed "s/%s/$esc_msg/")"
+	fi
+
+	printf '%s\n' "$message" >"$I3TITLE_PIPE"
+}
+
+erase() {
+	printf '\n' >"$I3TITLE_PIPE"
+
+	if [ -f "$ERASE_PID" ]; then
+		rm "$ERASE_PID"
+	fi
+}
+
+parse_flags() {
+	important=0 # default
+	timeout=3   # default
+
+	while [ $# -gt 0 ]; do
+		case "$1" in
+		-m)
+			shift; message="$1" ;;
+		-t)
+			shift; timeout="$1" ;;
+		-f)
+			shift; format="$1" ;;
+		-i)
+			important=1 ;;
+		-w)
+			echo "$I3TITLE_MAX_WIDTH"; exit 0 ;;
+		-*)
+			echo "Unknown option $1"
+			exit 1
+			;;
+		esac
+
+		shift
+	done
+}
+
+main() {
+	setup_env
+
+	parse_flags "$@"
+
+	if [ "$important" -eq 1 ]; then
+		if [ -s $QUEUE_PIDS ]; then
+			# Queue self and wait for the wake
+			echo $$ >>"$QUEUE_PIDS"
+			kill -s STOP $$
+		else
+			# Queue self and proceed
+			echo $$ >>"$QUEUE_PIDS"
+		fi
+	elif [ -s $QUEUE_PIDS ]; then
+		# Regular, transient messages do not wait when there's a queue
+		exit 0
+	fi
+
+	if [ -f "$ERASE_PID" ]; then
+		kill -s TERM "$(cat "$ERASE_PID")"
+		rm "$ERASE_PID"
+	fi
+
+	if [ -p /dev/stdin ]; then
+		while IFS= read -r line || [ -n "$line" ]; do
+			case "$line" in
+			format:* )
+				format="${line#'format:'}"
+				;;
+			message:* | * )
+				message="${line#'message:'}"
+				;;
+			esac
+
+			send
+
+		done </dev/stdin
+	else
+		# One-off message
+		send
+	fi
+
+	# Setup erase job
+	if [ "$timeout" != '-1' ]; then
+		( sleep "$timeout"; erase ) &
+		echo $! >"$ERASE_PID"
+	fi
+
+	# Remove self from top of queue file
+	sed -i '/^'"$$"'$/d' "$QUEUE_PIDS"
+	# Wake the next in queue
+	next_pid="$(head -n1 "$QUEUE_PIDS")"
+	if [ -n "$next_pid" ] && kill -0 "$next_pid"; then
+		kill -s CONT "$next_pid"
+	fi
+}
+
+main "$@"
