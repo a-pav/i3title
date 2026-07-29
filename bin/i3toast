@@ -115,6 +115,7 @@ erase_launch() {
 	if [ "$timeout" != '-1' ]; then
 		( sleep "$timeout"; erase ) &
 		echo $! >"$ERASE_PID"
+		wait $!
 	fi
 }
 
