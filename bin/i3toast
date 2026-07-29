@@ -51,7 +51,7 @@ parse_flags() {
 	done
 }
 
-# Decides how to proceed execution
+# Decide how to proceed execution
 decide_process() {
 	if [ "$important" -eq 1 ]; then
 		if queue_busy; then
@@ -68,7 +68,7 @@ decide_process() {
 	fi
 }
 
-handle_stdin() {
+read_stdin() {
 	while IFS= read -r line || [ -n "$line" ]; do
 		case "$line" in
 		format:* )
@@ -102,33 +102,32 @@ erase() {
 	fi
 }
 
-# Setup erase job
-setup_erase() {
+# Launch the erase job
+erase_launch() {
 	if [ "$timeout" != '-1' ]; then
 		( sleep "$timeout"; erase ) &
 		echo $! >"$ERASE_PID"
 	fi
 }
 
-# Kill the pending erase job
-kill_erase() {
+# Cancel the pending erase job
+erase_cancel() {
 	if [ -f "$ERASE_PID" ]; then
 		kill -s TERM "$(cat "$ERASE_PID")"
 		rm "$ERASE_PID"
 	fi
 }
 
+# Check whether the queue is bussy
 queue_busy() {
 	test -s "$QUEUE_PIDS"
 }
 
-# Remove self from (top of) the queue file
-dequeue_self() {
+# Wake the next process in queue
+queue_next() {
+	# Remove self from the queue file
 	sed -i '/^'"$$"'$/d' "$QUEUE_PIDS"
-}
 
-# Wake the next in queue
-wake_next() {
 	local next_pid
 	next_pid="$(head -n1 "$QUEUE_PIDS")"
 	if [ -n "$next_pid" ] && kill -0 "$next_pid"; then
@@ -142,16 +141,15 @@ main() {
 
 	decide_process
 
-	kill_erase
+	erase_cancel
 	if [ -p /dev/stdin ]; then
-		handle_stdin
+		read_stdin
 	else
 		send # One-shot message
 	fi
-	setup_erase
+	erase_launch
 
-	dequeue_self
-	wake_next
+	queue_next
 }
 
 main "$@"
