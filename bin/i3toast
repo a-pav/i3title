@@ -23,24 +23,6 @@ setup_env() {
 	fi
 }
 
-send() {
-	if [ -n "$format" ]; then
-		local esc_msg
-		esc_msg="$(printf '%s' "$message" | sed 's/[&/\]/\\&/g')"
-		message="$(printf '%s' "$format" | sed "s/%s/$esc_msg/")"
-	fi
-
-	printf '%s\n' "$message" >"$I3TITLE_PIPE"
-}
-
-erase() {
-	printf '\n' >"$I3TITLE_PIPE"
-
-	if [ -f "$ERASE_PID" ]; then
-		rm "$ERASE_PID"
-	fi
-}
-
 parse_flags() {
 	important=0 # default
 	timeout=3   # default
@@ -69,13 +51,10 @@ parse_flags() {
 	done
 }
 
-main() {
-	setup_env
-
-	parse_flags "$@"
-
+# Decides how to proceed execution
+decide_process() {
 	if [ "$important" -eq 1 ]; then
-		if [ -s "$QUEUE_PIDS" ]; then
+		if queue_busy; then
 			# Queue self and wait for the wake
 			echo $$ >>"$QUEUE_PIDS"
 			kill -s STOP $$
@@ -83,48 +62,96 @@ main() {
 			# Queue self and proceed
 			echo $$ >>"$QUEUE_PIDS"
 		fi
-	elif [ -s "$QUEUE_PIDS" ]; then
-		# Regular, transient messages do not wait when there's a queue
+	elif queue_busy; then
+		# Regular, transient messages are dropped when there's a queue
 		exit 0
 	fi
+}
+
+handle_stdin() {
+	while IFS= read -r line || [ -n "$line" ]; do
+		case "$line" in
+		format:* )
+			format="${line#'format:'}"
+			;;
+		message:* | * )
+			message="${line#'message:'}"
+			;;
+		esac
+
+		send
+
+	done </dev/stdin
+}
+
+send() {
+	if [ -n "$format" ]; then
+		local esc_msg
+		esc_msg="$(printf '%s' "$message" | sed 's/[&/\]/\\&/g')"
+		message="$(printf '%s' "$format" | sed "s/%s/$esc_msg/")"
+	fi
+
+	printf '%s\n' "$message" >"$I3TITLE_PIPE"
+}
+
+erase() {
+	printf '\n' >"$I3TITLE_PIPE"
 
 	if [ -f "$ERASE_PID" ]; then
-		kill -s TERM "$(cat "$ERASE_PID")"
 		rm "$ERASE_PID"
 	fi
+}
 
-	if [ -p /dev/stdin ]; then
-		while IFS= read -r line || [ -n "$line" ]; do
-			case "$line" in
-			format:* )
-				format="${line#'format:'}"
-				;;
-			message:* | * )
-				message="${line#'message:'}"
-				;;
-			esac
-
-			send
-
-		done </dev/stdin
-	else
-		# One-off message
-		send
-	fi
-
-	# Setup erase job
+# Setup erase job
+setup_erase() {
 	if [ "$timeout" != '-1' ]; then
 		( sleep "$timeout"; erase ) &
 		echo $! >"$ERASE_PID"
 	fi
+}
 
-	# Remove self from top of queue file
+# Kill the pending erase job
+kill_erase() {
+	if [ -f "$ERASE_PID" ]; then
+		kill -s TERM "$(cat "$ERASE_PID")"
+		rm "$ERASE_PID"
+	fi
+}
+
+queue_busy() {
+	test -s "$QUEUE_PIDS"
+}
+
+# Remove self from (top of) the queue file
+dequeue_self() {
 	sed -i '/^'"$$"'$/d' "$QUEUE_PIDS"
-	# Wake the next in queue
+}
+
+# Wake the next in queue
+wake_next() {
+	local next_pid
 	next_pid="$(head -n1 "$QUEUE_PIDS")"
 	if [ -n "$next_pid" ] && kill -0 "$next_pid"; then
 		kill -s CONT "$next_pid"
 	fi
+}
+
+main() {
+	setup_env
+	parse_flags "$@"
+
+	decide_process
+
+	kill_erase
+	if [ -p /dev/stdin ]; then
+		handle_stdin
+	else
+		send # One-shot message
+	fi
+	setup_erase
+
+	dequeue_self
+	wake_next
 }
 
 main "$@"
