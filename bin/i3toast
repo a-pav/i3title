@@ -57,6 +57,8 @@ parse_flags() {
 			important=1 ;;
 		-w)
 			echo "$I3TITLE_MAX_WIDTH"; exit 0 ;;
+		-r)
+			erase; : >"$QUEUE_PIDS"; exit 0;;
 		-*)
 			echo "Unknown option $1"
 			exit 1
@@ -73,7 +75,7 @@ main() {
 	parse_flags "$@"
 
 	if [ "$important" -eq 1 ]; then
-		if [ -s $QUEUE_PIDS ]; then
+		if [ -s "$QUEUE_PIDS" ]; then
 			# Queue self and wait for the wake
 			echo $$ >>"$QUEUE_PIDS"
 			kill -s STOP $$
@@ -81,7 +83,7 @@ main() {
 			# Queue self and proceed
 			echo $$ >>"$QUEUE_PIDS"
 		fi
-	elif [ -s $QUEUE_PIDS ]; then
+	elif [ -s "$QUEUE_PIDS" ]; then
 		# Regular, transient messages do not wait when there's a queue
 		exit 0
 	fi
