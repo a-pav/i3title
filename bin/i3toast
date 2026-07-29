@@ -103,11 +103,8 @@ send() {
 }
 
 erase() {
+	rm "$ERASE_PID"
 	printf '\n' >"$I3TITLE_PIPE"
-
-	if [ -f "$ERASE_PID" ]; then
-		rm "$ERASE_PID"
-	fi
 }
 
 # Launch the erase job
@@ -122,8 +119,9 @@ erase_launch() {
 # Cancel the pending erase job
 erase_cancel() {
 	if [ -f "$ERASE_PID" ]; then
-		kill -s TERM "$(cat "$ERASE_PID")"
+		local -r pid="$(cat "$ERASE_PID")"
 		rm "$ERASE_PID"
+		kill -s TERM "$pid"
 	fi
 }
 
