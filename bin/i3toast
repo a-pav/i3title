@@ -120,7 +120,7 @@ erase_launch() {
 # Cancel the pending erase job
 erase_cancel() {
 	if [ -f "$ERASE_PID" ]; then
-		local -r pid="$(cat "$ERASE_PID")"
+		local pid; pid="$(cat "$ERASE_PID")"
 		rm "$ERASE_PID"
 		kill -s TERM "$pid"
 	fi
