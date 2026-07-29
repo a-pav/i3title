@@ -39,8 +39,10 @@ parse_flags() {
 			important=1 ;;
 		-w)
 			echo "$I3TITLE_MAX_WIDTH"; exit 0 ;;
-		-r)
-			erase; : >"$QUEUE_PIDS"; exit 0;;
+		-e)
+			erase; exit 0 ;;
+		-E)
+			erase; :>"$QUEUE_PIDS"; exit 0 ;;
 		-*)
 			echo "Unknown option $1"
 			exit 1
@@ -51,20 +53,26 @@ parse_flags() {
 	done
 }
 
+is_important() {
+	test "$important" -eq 1
+}
+
 # Decide how to proceed execution
 decide_process() {
-	if [ "$important" -eq 1 ]; then
+	if is_important; then
 		if queue_busy; then
 			# Queue self and wait for the wake
-			echo $$ >>"$QUEUE_PIDS"
+			queue_add $$
 			kill -s STOP $$
 		else
 			# Queue self and proceed
-			echo $$ >>"$QUEUE_PIDS"
+			queue_add $$
 		fi
 	elif queue_busy; then
-		# Regular, transient messages are dropped when there's a queue
+		# Transient messages are dropped when there's a queue
 		exit 0
+	#else
+	 	# Transient message + empty queue -> proceed
 	fi
 }
 
@@ -123,11 +131,18 @@ queue_busy() {
 	test -s "$QUEUE_PIDS"
 }
 
+# Add pid to the queue
+queue_add() {
+	echo "$1" >>"$QUEUE_PIDS"
+}
+
+# Remove pid from the queue
+queue_pop() {
+	sed -i '/^'"$1"'$/d' "$QUEUE_PIDS"
+}
+
 # Wake the next process in queue
 queue_next() {
-	# Remove self from the queue file
-	sed -i '/^'"$$"'$/d' "$QUEUE_PIDS"
-
 	local next_pid
 	next_pid="$(head -n1 "$QUEUE_PIDS")"
 	if [ -n "$next_pid" ] && kill -0 "$next_pid"; then
@@ -149,6 +164,9 @@ main() {
 	fi
 	erase_launch
 
+	if is_important; then
+		queue_pop $$
+	fi
 	queue_next
 }
 
