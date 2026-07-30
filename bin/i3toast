@@ -24,8 +24,12 @@ setup_env() {
 }
 
 parse_flags() {
-	important=0 # default
-	timeout=3   # default
+	important=0
+	timeout=4   # default
+
+	set_format ""
+	trim=0
+	replacer=0
 
 	while [ $# -gt 0 ]; do
 		case "$1" in
@@ -43,6 +47,12 @@ parse_flags() {
 			erase; exit 0 ;;
 		-E)
 			erase; :>"$QUEUE_PIDS"; exit 0 ;;
+		-T)
+			trim=1 ;;
+		-R)
+			replacer=1 ;;
+		-S)
+			trim=1; replacer=1 ;;
 		-*)
 			echo "Unknown option $1"
 			exit 1
@@ -57,11 +67,22 @@ is_important() {
 	test "$important" -eq 1
 }
 
-# Set format and calculate its visible width
 set_format() {
-	format="$1"
-	local wid; wid="$(printf '%s' "$format" | sed -E 's/<\/?[^>]+>//g' | wc -m)"
-	format_width="$((wid-2))" # len("%s") == 2
+	local fmt="$1"
+	if [ -z "$fmt" ]; then
+		format_left=""
+		format_right=""
+		format_width=0
+	else
+		format_left="${fmt%%'%s'*}"
+		format_right="${fmt#*'%s'}"
+
+		local wid
+		wid="$(printf '%s' "$fmt" | sed -E 's/<\/?[^>]+>//g' | wc -m)"
+		if [ "$wid" -ge 2 ]; then
+			format_width="$((wid-2))" # len("%s") == 2
+		fi
+	fi
 }
 
 # Decide how to proceed execution
@@ -100,11 +121,13 @@ read_stdin() {
 }
 
 send() {
-	if [ -n "$format" ]; then
-		printf '%s\036%s\036%s\n' "$message" "$format" "$format_width" >"$I3TITLE_PIPE"
-	else
-		printf '%s\n' "$message" >"$I3TITLE_PIPE"
-	fi
+	printf '%s\036%s\036%s\036%s\036%s\036%s\n' \
+		"$format_left" \
+		"$format_right" \
+		"$format_width" \
+		"$trim" \
+		"$replacer" \
+		"$message" >"$I3TITLE_PIPE"
 }
 
 erase() {
