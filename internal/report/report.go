@@ -50,23 +50,19 @@ func reporter(cfg *config.Config,
 	titleCh, modeCh <-chan string,
 ) {
 	var (
-		report = bbuf.New(cfg.MaxWidth * 5) // Outgoing report (Big enough buffer, even for all-Chinese characters.)
+		report  = bbuf.New(cfg.MaxWidth * 5) // Outgoing report (Big enough buffer, even for all-Chinese characters.)
+		mode    = "default"                  // Current i3 mode.
+		title   string                       // Current window title.
+		message []byte                       // Piped in message.
 
 		line0 []byte                      // Incoming line from `i3status` stdout.
 		line1 = make([]byte, cfg.BufSize) // Outgoing line with report in it.
-
-		title0 string                       // Current window full title.
-		title1 = make([]rune, cfg.MaxWidth) // Runes of current window title; Helps with rune counting and avoiding allocation.
-
-		mode = "default" // Current i3 mode.
-
-		message []byte // Overwrites the `report`.
 
 		PSS = []byte("%s") // Percent Sight S, len(PSS) == 2
 		LF  = []byte{'\n'}
 	)
 	// replacer exists to avoid checking `cfg.Replacer != nil` in the main loop.
-	replacer := func() func(*bbuf.BasicBuffer, string) (int, error) {
+	replacer := func() func(b *bbuf.BasicBuffer, s string) (int, error) {
 		if cfg.Replacer != nil {
 			return func(b *bbuf.BasicBuffer, s string) (int, error) {
 				return cfg.Replacer.WriteString(b, s)
@@ -76,31 +72,8 @@ func reporter(cfg *config.Config,
 			return b.WriteString(s)
 		}
 	}()
-	trimTitle := func(max int) string {
-		if len(title0) <= max {
-			return title0
-		}
-		// Count the runes.
-		s := title1
-		i := 0
-		for _, r := range title0 {
-			if i == max {
-				s = s[:max]
-				n := lastIndexNonSpace(s) // n will be <= max-1
-				if n == max-1 {
-					s[n] = '…' // change the last character
-				} else { // n < max-1
-					s[n+1] = '…'
-					s = s[:n+2]
-				}
-				return string(s) // alloc
-			}
-			s[i] = r
-			i++
-		}
+	trim := trimmer(cfg.MaxWidth)
 
-		return title0
-	}
 	doPrint := func() {
 		i := cfg.PHIndex
 		if i <= 0 {
@@ -134,7 +107,7 @@ func reporter(cfg *config.Config,
 			report.WriteString(mode)
 			report.WriteString(cfg.ModeStyle[i+2:]) // 2 == len("%s")
 		}
-		replacer(report, trimTitle(cfg.MaxWidth-mw))
+		replacer(report, trim(title, cfg.MaxWidth-mw))
 
 		doPrint()
 	}
@@ -175,7 +148,7 @@ func reporter(cfg *config.Config,
 		select {
 		case line0 = <-lineCh:
 			doPrint() // just print
-		case title0 = <-titleCh:
+		case title = <-titleCh:
 			newReport()
 		case mode, ok = <-modeCh:
 			if !ok {
@@ -293,6 +266,38 @@ func emitMessages(pipe string, bufferSize int, messageCh chan<- []byte) {
 			log.Println("pipe scanner:", err)
 		}
 	}()
+}
+
+// trimmer returns a function that cuts string str at length max.
+func trimmer(maxWidth int) func(str string, max int) string {
+	// maxWidth as runes, used in rune counting. Held reference to avoid allocation.
+	width := make([]rune, maxWidth)
+
+	return func(str string, max int) string {
+		if len(str) <= max {
+			return str
+		}
+		// Count the runes.
+		s := width
+		i := 0
+		for _, r := range str {
+			if i == max {
+				s = s[:max]
+				n := lastIndexNonSpace(s) // n <= max-1
+				if n == max-1 {
+					s[n] = '…'
+				} else { // n <= max-2
+					s[n+1] = '…'
+					s = s[:n+2] // n+2 <= max
+				}
+				return string(s) // alloc
+			}
+			s[i] = r
+			i++
+		}
+
+		return str
+	}
 }
 
 // lastIndexNonSpace returns the index of last non-space character in s.
