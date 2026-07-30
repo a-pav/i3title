@@ -62,6 +62,17 @@ func reporter(cfg *config.Config,
 
 		LF = []byte{'\n'}
 	)
+	// replacer exists to avoid checking `cfg.Replacer != nil` in the main loop.
+	replacer := func() func(*bbuf.BasicBuffer, string) (int, error) {
+		if cfg.Replacer != nil {
+			return func(b *bbuf.BasicBuffer, s string) (int, error) {
+				return cfg.Replacer.WriteString(b, s)
+			}
+		}
+		return func(b *bbuf.BasicBuffer, s string) (int, error) {
+			return b.WriteString(s)
+		}
+	}()
 	trimTitle := func(max int) string {
 		if len(title0) <= max {
 			return title0
@@ -120,11 +131,7 @@ func reporter(cfg *config.Config,
 			report.WriteString(mode)
 			report.WriteString(cfg.ModeStyle[i+2:]) // 2 == len("%s")
 		}
-		if r := cfg.Replacer; r != nil {
-			r.WriteString(report, trimTitle(cfg.MaxWidth-mw))
-		} else {
-			report.WriteString(trimTitle(cfg.MaxWidth - mw))
-		}
+		replacer(report, trimTitle(cfg.MaxWidth-mw))
 
 		doPrint()
 	}
