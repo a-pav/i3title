@@ -34,7 +34,7 @@ parse_flags() {
 		-t)
 			shift; timeout="$1" ;;
 		-f)
-			shift; format="$1" ;;
+			shift; set_format "$1" ;;
 		-i)
 			important=1 ;;
 		-w)
@@ -55,6 +55,13 @@ parse_flags() {
 
 is_important() {
 	test "$important" -eq 1
+}
+
+# Set format and calculate its visible width
+set_format() {
+	format="$1"
+	local wid; wid="$(printf '%s' "$format" | sed -E 's/<\/?[^>]+>//g' | wc -m)"
+	format_width="$((wid-2))" # len("%s") == 2
 }
 
 # Decide how to proceed execution
@@ -80,7 +87,7 @@ read_stdin() {
 	while IFS= read -r line || [ -n "$line" ]; do
 		case "$line" in
 		i3toast:fmt:* )
-			format="${line#'i3toast:fmt:'}"
+			set_format "${line#'i3toast:fmt:'}"
 			;;
 		i3toast:msg:* | * )
 			message="${line#'i3toast:msg:'}"
@@ -94,7 +101,7 @@ read_stdin() {
 
 send() {
 	if [ -n "$format" ]; then
-		printf '%s\036%s\n' "$message" "$format" >"$I3TITLE_PIPE"
+		printf '%s\036%s\036%s\n' "$message" "$format" "$format_width" >"$I3TITLE_PIPE"
 	else
 		printf '%s\n' "$message" >"$I3TITLE_PIPE"
 	fi
