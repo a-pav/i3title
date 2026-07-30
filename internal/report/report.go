@@ -13,8 +13,6 @@ import (
 	"github.com/a-pav/i3title/internal/config"
 )
 
-const ARS = byte('\036') // ASCII Record Separator
-
 func Run(cfg *config.Config) error {
 	var (
 		lineCh    = make(chan []byte)
@@ -58,7 +56,7 @@ func reporter(cfg *config.Config,
 		line0 []byte                      // Incoming line from `i3status` stdout.
 		line1 = make([]byte, cfg.BufSize) // Outgoing line with report in it.
 
-		PSS = []byte("%s") // Percent Sight S, len(PSS) == 2
+		ARS = []byte{'\036'} // ASCII Record Separator
 		LF  = []byte{'\n'}
 	)
 	// replacer exists to avoid checking `cfg.Replacer != nil` in the main loop.
@@ -118,15 +116,30 @@ func reporter(cfg *config.Config,
 		}
 		report.Reset()
 
-		if i := bytes.IndexByte(message, ARS); i >= 0 {
-			msg, fmt := message[:i], message[i+1:]
-			if j := bytes.Index(fmt, PSS); j >= 0 {
-				report.Write(fmt[:j])
-				report.Write(msg)
-				report.Write(fmt[j+2:])
+		if parts := bytes.SplitN(message, ARS, 6); len(parts) == 6 {
+			var (
+				formatLeft  = parts[0]
+				formatRight = parts[1]
+				formatWidth = atoi(parts[2])
+				doTrim      = atoi(parts[3])
+				doReplacer  = atoi(parts[4])
+				msg         = parts[5]
+			)
+			report.Write(formatLeft)
+
+			if doTrim == 1 && doReplacer == 1 {
+				replacer(report, trim(string(msg), cfg.MaxWidth-formatWidth))
+			} else if doReplacer == 1 {
+				replacer(report, string(msg))
+			} else if doTrim == 1 {
+				report.WriteString(trim(string(msg), cfg.MaxWidth-formatWidth))
+			} else {
+				report.Write(msg) // raw write
 			}
+
+			report.Write(formatRight)
 		} else {
-			report.Write(message)
+			report.WriteString("<span font='bold' fgcolor='#ff2b2b'>400 Bad Request</span>")
 		}
 
 		doPrint()
@@ -308,6 +321,19 @@ func lastIndexNonSpace(s []rune) int {
 		}
 	}
 	return -1 // All were space.
+}
+
+func atoi(b []byte) int {
+	switch len(b) {
+	case 1:
+		return int(b[0] - '0')
+	case 2:
+		return int(b[0]-'0')*10 + int(b[1]-'0')
+	case 3:
+		return int(b[0]-'0')*100 + int(b[1]-'0')*10 + int(b[2]-'0')
+	default:
+		return -1
+	}
 }
 
 // Read-only `[]byte(string)` convertions are optimized by compiler:
