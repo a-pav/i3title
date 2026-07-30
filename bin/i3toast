@@ -79,11 +79,11 @@ decide_process() {
 read_stdin() {
 	while IFS= read -r line || [ -n "$line" ]; do
 		case "$line" in
-		format:* )
-			format="${line#'format:'}"
+		i3toast:fmt:* )
+			format="${line#'i3toast:fmt:'}"
 			;;
-		message:* | * )
-			message="${line#'message:'}"
+		i3toast:msg:* | * )
+			message="${line#'i3toast:msg:'}"
 			;;
 		esac
 
@@ -126,7 +126,7 @@ erase_cancel() {
 	fi
 }
 
-# Check whether the queue is bussy
+# Check whether the queue is busy
 queue_busy() {
 	test -s "$QUEUE_PIDS"
 }
@@ -143,8 +143,7 @@ queue_pop() {
 
 # Wake the next process in queue
 queue_next() {
-	local next_pid
-	next_pid="$(head -n1 "$QUEUE_PIDS")"
+	local next_pid; next_pid="$(head -n1 "$QUEUE_PIDS")"
 	if [ -n "$next_pid" ] && kill -0 "$next_pid"; then
 		kill -s CONT "$next_pid"
 	fi
@@ -166,8 +165,8 @@ main() {
 
 	if is_important; then
 		queue_pop $$
+		queue_next
 	fi
-	queue_next
 }
 
 main "$@"
