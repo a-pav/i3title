@@ -13,6 +13,8 @@ import (
 	"github.com/a-pav/i3title/internal/config"
 )
 
+const ARS = byte('\036') // ASCII Record Separator
+
 func Run(cfg *config.Config) error {
 	var (
 		lineCh    = make(chan []byte)
@@ -60,7 +62,8 @@ func reporter(cfg *config.Config,
 
 		message []byte // Overwrites the `report`.
 
-		LF = []byte{'\n'}
+		PSS = []byte("%s") // Percent Sight S, len(PSS) == 2
+		LF  = []byte{'\n'}
 	)
 	// replacer exists to avoid checking `cfg.Replacer != nil` in the main loop.
 	replacer := func() func(*bbuf.BasicBuffer, string) (int, error) {
@@ -141,7 +144,18 @@ func reporter(cfg *config.Config,
 			return
 		}
 		report.Reset()
-		report.Write(message)
+
+		if i := bytes.IndexByte(message, ARS); i >= 0 {
+			msg, fmt := message[:i], message[i+1:]
+			if j := bytes.Index(fmt, PSS); j >= 0 {
+				report.Write(fmt[:j])
+				report.Write(msg)
+				report.Write(fmt[j+2:])
+			}
+		} else {
+			report.Write(message)
+		}
+
 		doPrint()
 	}
 

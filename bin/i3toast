@@ -93,14 +93,11 @@ read_stdin() {
 }
 
 send() {
-	local msg="$message"
-
 	if [ -n "$format" ]; then
-		msg="$(printf '%s' "$message" | sed 's/[&/\]/\\&/g')" # escape for sed substitution
-		msg="$(printf '%s' "$format" | sed "s/%s/$msg/")"
+		printf '%s\036%s\n' "$message" "$format" >"$I3TITLE_PIPE"
+	else
+		printf '%s\n' "$message" >"$I3TITLE_PIPE"
 	fi
-
-	printf '%s\n' "$msg" >"$I3TITLE_PIPE"
 }
 
 erase() {
