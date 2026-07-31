@@ -136,14 +136,13 @@ read_stdin() {
 }
 
 send() {
-	printf '%s%s\036%s\036%s\036%s\036%s\036%s\n' \
-		"$offset" \
-		"$format_left" \
-		"$format_right" \
+	printf '%s\036%s\036%s\036%s\036%s\036%s\n' \
+		"${offset}${format_left}" \
+		"${format_right}" \
 		"$((format_width+offset_width))" \
-		"$trim" \
-		"$replacer" \
-		"$message" >"$I3TITLE_PIPE"
+		"${trim}" \
+		"${replacer}" \
+		"${message}" >"$I3TITLE_PIPE"
 }
 
 erase() {
