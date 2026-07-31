@@ -286,18 +286,22 @@ func trimmer(maxWidth int) func(str string, max int) string {
 	// maxWidth as runes, used in rune counting. Held reference to avoid allocation.
 	width := make([]rune, maxWidth)
 
-	return func(str string, max int) string {
-		if len(str) <= max {
+	return func(str string, mxw int) string {
+		mxw = max(mxw, 0) // clamp maximum width at 0
+		if mxw == 0 {
+			return "…"
+		}
+		if len(str) <= mxw {
 			return str
 		}
 		// Count the runes.
 		s := width
 		i := 0
 		for _, r := range str {
-			if i == max {
-				s = s[:max]
+			if i == mxw {
+				s = s[:mxw]
 				n := lastIndexNonSpace(s) // n <= max-1
-				if n == max-1 {
+				if n == mxw-1 {
 					s[n] = '…'
 				} else { // n <= max-2
 					s[n+1] = '…'

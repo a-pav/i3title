@@ -89,11 +89,11 @@ set_format() {
 }
 
 set_offset() {
-	local off="$1"
-	if [ "$off" -eq 0 ]; then
+	offset_width="$1"
+	if [ "$offset_width" -eq 0 ]; then
 		offset=""
 	else
-		offset="$(printf '%*s' "$off" '')"
+		offset="$(printf '%*s' "$offset_width" '')"
 	fi
 }
 
@@ -140,7 +140,7 @@ send() {
 		"$offset" \
 		"$format_left" \
 		"$format_right" \
-		"$format_width" \
+		"$((format_width+offset_width))" \
 		"$trim" \
 		"$replacer" \
 		"$message" >"$I3TITLE_PIPE"
