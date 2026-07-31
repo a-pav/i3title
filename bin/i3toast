@@ -28,6 +28,7 @@ parse_flags() {
 	timeout=4   # default
 
 	set_format ""
+	set_offset 0
 	trim=0
 	replacer=0
 
@@ -39,6 +40,8 @@ parse_flags() {
 			shift; timeout="$1" ;;
 		-f)
 			shift; set_format "$1" ;;
+		-o)
+			shift; set_offset "$1" ;;
 		-i)
 			important=1 ;;
 		-w)
@@ -85,6 +88,15 @@ set_format() {
 	fi
 }
 
+set_offset() {
+	local off="$1"
+	if [ "$off" -eq 0 ]; then
+		offset=""
+	else
+		offset="$(printf '%*s' "$off" '')"
+	fi
+}
+
 # Decide how to proceed execution
 decide_process() {
 	if is_important; then
@@ -107,6 +119,9 @@ decide_process() {
 read_stdin() {
 	while IFS= read -r line || [ -n "$line" ]; do
 		case "$line" in
+		i3toast:off:* )
+			set_offset "${line#'i3toast:off:'}"
+			;;
 		i3toast:fmt:* )
 			set_format "${line#'i3toast:fmt:'}"
 			;;
@@ -121,7 +136,8 @@ read_stdin() {
 }
 
 send() {
-	printf '%s\036%s\036%s\036%s\036%s\036%s\n' \
+	printf '%s%s\036%s\036%s\036%s\036%s\036%s\n' \
+		"$offset" \
 		"$format_left" \
 		"$format_right" \
 		"$format_width" \
