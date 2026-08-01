@@ -27,6 +27,7 @@ parse_flags() {
 	important=0
 	timeout=4   # default
 
+	set_message ""
 	set_format ""
 	set_offset 0
 	trim=0
@@ -35,7 +36,7 @@ parse_flags() {
 	while [ $# -gt 0 ]; do
 		case "$1" in
 		-m)
-			shift; message="$1" ;;
+			shift; set_message "$1" ;;
 		-t)
 			shift; timeout="$1" ;;
 		-f)
@@ -68,6 +69,11 @@ parse_flags() {
 
 is_important() {
 	test "$important" -eq 1
+}
+
+set_message() {
+	# Strip control characters
+	message="$(printf '%s' "$1" | tr -cd '[:print:]\t' | tr '\t' ' ')"
 }
 
 set_format() {
@@ -126,7 +132,7 @@ read_stdin() {
 			set_format "${line#'i3toast:fmt:'}"
 			;;
 		i3toast:msg:* | * )
-			message="${line#'i3toast:msg:'}"
+			set_message "${line#'i3toast:msg:'}"
 			;;
 		esac
 
