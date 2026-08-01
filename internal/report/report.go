@@ -15,19 +15,25 @@ import (
 
 func Run(cfg *config.Config) error {
 	var (
-		lineCh    = make(chan []byte)
-		messageCh = make(chan []byte)
-		titleCh   = make(chan string)
-		modeCh    = make(chan string)
+		lineCh      = make(chan []byte)
+		lineDone    = make(chan struct{})
+		messageCh   = make(chan []byte)
+		messageDone = make(chan struct{})
+		titleCh     = make(chan string)
+		modeCh      = make(chan string)
 	)
-	go reporter(cfg, lineCh, messageCh, titleCh, modeCh)
+	go reporter(cfg,
+		lineCh, messageCh,
+		lineDone, messageDone,
+		titleCh, modeCh,
+	)
 
-	emitLines(cfg.BufSize, lineCh)
+	emitLines(cfg.BufSize, lineCh, lineDone)
 
 	if cfg.Pipe == "" {
 		close(messageCh)
 	} else {
-		emitMessages(cfg.Pipe, cfg.MaxWidth*5, messageCh)
+		emitMessages(cfg.Pipe, cfg.MaxWidth*5, messageCh, messageDone)
 	}
 
 	go emitTitles(titleCh)
@@ -45,6 +51,7 @@ func Run(cfg *config.Config) error {
 // and handles the unified reporting logic.
 func reporter(cfg *config.Config,
 	lineCh, messageCh <-chan []byte,
+	lineDone, messageDone chan<- struct{},
 	titleCh, modeCh <-chan string,
 ) {
 	var (
@@ -154,13 +161,16 @@ func reporter(cfg *config.Config,
 		c += copy(line1[c:], LF)
 
 		os.Stdout.Write(line1[:c])
+
+		lineDone <- struct{}{}
 	}
 
-	for {
+	for { // main loop
 		var ok bool
 		select {
 		case line0 = <-lineCh:
 			doPrint() // just print
+			lineDone <- struct{}{}
 		case title = <-titleCh:
 			newReport()
 		case mode, ok = <-modeCh:
@@ -175,6 +185,7 @@ func reporter(cfg *config.Config,
 				continue
 			}
 			newMessage()
+			messageDone <- struct{}{}
 		}
 	}
 }
@@ -207,7 +218,7 @@ func emitTitles(titleCh chan<- string) {
 
 // emitLines scans [os.Stdin], which is presumed to be data coming from i3status,
 // and sends the data to channel.
-func emitLines(bufferSize uint16, lineCh chan<- []byte) {
+func emitLines(bufferSize uint16, lineCh chan<- []byte, lineDone <-chan struct{}) {
 	lineScnr := bufio.NewScanner(os.Stdin)
 	// Set maximum buffer size.
 	buf := make([]byte, bufferSize)
@@ -226,11 +237,13 @@ func emitLines(bufferSize uint16, lineCh chan<- []byte) {
 	for range 4 {
 		lineScnr.Scan()
 		lineCh <- lineScnr.Bytes()
+		<-lineDone
 	}
 
 	go func() {
 		for lineScnr.Scan() {
 			lineCh <- lineScnr.Bytes()
+			<-lineDone
 		}
 
 		if err := lineScnr.Err(); err != nil {
@@ -241,7 +254,7 @@ func emitLines(bufferSize uint16, lineCh chan<- []byte) {
 
 // emitMessages reads from the named pipe at config.Pipe path and sends the data
 // to channel.
-func emitMessages(pipe string, bufferSize int, messageCh chan<- []byte) {
+func emitMessages(pipe string, bufferSize int, messageCh chan<- []byte, messageDone <-chan struct{}) {
 	// Remove any old pipe.
 	os.Remove(pipe)
 	// Create a new FIFO with 0600 permissions.
@@ -259,25 +272,30 @@ func emitMessages(pipe string, bufferSize int, messageCh chan<- []byte) {
 	}
 	// NO defer fi.Close() here - it would close before goroutine finishes.
 
-	pipeScnr := bufio.NewScanner(fi)
 	// Set maximum buffer size.
-	buf := make([]byte, bufferSize)
-	pipeScnr.Buffer(buf, 0)
-	if err := pipeScnr.Err(); err != nil {
-		log.Printf("init pipe scanner: %v", err)
-		close(messageCh)
-		return
-	}
+	pipeRd := bufio.NewReaderSize(fi, bufferSize)
 
 	go func() {
-		for pipeScnr.Scan() {
-			messageCh <- pipeScnr.Bytes()
+		for {
+			message, isPrefix, err := pipeRd.ReadLine()
+			if err != nil {
+				log.Println("pipe reader:", err)
+				break
+			}
+
+			messageCh <- message
+			<-messageDone
+
+			// Discard the remainder of an overlong line.
+			for isPrefix {
+				_, isPrefix, err = pipeRd.ReadLine()
+				if err != nil {
+					log.Println("pipe reader: discard:", err)
+					break
+				}
+			}
 		}
 		fi.Close()
-
-		if err := pipeScnr.Err(); err != nil {
-			log.Println("pipe scanner:", err)
-		}
 	}()
 }
 
