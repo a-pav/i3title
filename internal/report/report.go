@@ -75,9 +75,7 @@ func reporter(cfg *config.Config,
 		if i <= 0 {
 			i = bytes.Index(line0, []byte(cfg.PH))
 			if cfg.PHIndex == 0 { // omited? then cache it.
-				// Why i+1? Because the first line does not have a comma at its
-				// beginning, but the rest do.
-				cfg.PHIndex = i + 1
+				cfg.PHIndex = i
 			} else {
 				// forced to recalculate.
 			}
@@ -143,8 +141,9 @@ func reporter(cfg *config.Config,
 		doPrint()
 	}
 
-	// The first two lines don't contain the placeholder and are printed verbatim.
-	for range 2 {
+	// The first two lines are i3bar protocol handshake and the third line is the
+	// odd one without having a comma `,` at its front, so these are printed verbatim.
+	for range 3 {
 		line0 = <-lineCh
 
 		c := 0
