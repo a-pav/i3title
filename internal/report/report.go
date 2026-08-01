@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"log"
 	"os"
+	"strings"
 	"syscall"
 
 	"go.i3wm.org/i3/v4"
@@ -66,18 +67,8 @@ func reporter(cfg *config.Config,
 		ARS = []byte{'\036'} // ASCII Record Separator
 		LF  = []byte{'\n'}
 	)
-	// replacer exists to avoid checking `cfg.Replacer != nil` in the main loop.
-	replacer := func() func(b *bbuf.BasicBuffer, s string) (int, error) {
-		if cfg.Replacer != nil {
-			return func(b *bbuf.BasicBuffer, s string) (int, error) {
-				return cfg.Replacer.WriteString(b, s)
-			}
-		}
-		return func(b *bbuf.BasicBuffer, s string) (int, error) {
-			return b.WriteString(s)
-		}
-	}()
 	trim := trimmer(cfg.MaxWidth)
+	replace := replacer(cfg.Replacer)
 
 	doPrint := func() {
 		i := cfg.PHIndex
@@ -112,7 +103,7 @@ func reporter(cfg *config.Config,
 			report.WriteString(mode)
 			report.WriteString(cfg.ModeStyle[i+2:]) // 2 == len("%s")
 		}
-		replacer(report, trim(title, cfg.MaxWidth-mw))
+		replace(report, trim(title, cfg.MaxWidth-mw))
 
 		doPrint()
 	}
@@ -135,9 +126,9 @@ func reporter(cfg *config.Config,
 			report.Write(formatLeft)
 
 			if doTrim == 1 && doReplacer == 1 {
-				replacer(report, trim(string(msg), cfg.MaxWidth-formatWidth))
+				replace(report, trim(string(msg), cfg.MaxWidth-formatWidth))
 			} else if doReplacer == 1 {
-				replacer(report, string(msg))
+				replace(report, string(msg))
 			} else if doTrim == 1 {
 				report.WriteString(trim(string(msg), cfg.MaxWidth-formatWidth))
 			} else {
@@ -297,6 +288,18 @@ func emitMessages(pipe string, bufferSize int, messageCh chan<- []byte, messageD
 		}
 		fi.Close()
 	}()
+}
+
+// replacer exists to avoid checking `cfg.Replacer != nil` in the main loop.
+func replacer(r *strings.Replacer) func(b *bbuf.BasicBuffer, s string) (int, error) {
+	if r != nil {
+		return func(b *bbuf.BasicBuffer, s string) (int, error) {
+			return r.WriteString(b, s)
+		}
+	}
+	return func(b *bbuf.BasicBuffer, s string) (int, error) {
+		return b.WriteString(s)
+	}
 }
 
 // trimmer returns a function that cuts string str at length max.
