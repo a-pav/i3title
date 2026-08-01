@@ -131,8 +131,11 @@ read_stdin() {
 		i3toast:fmt:* )
 			set_format "${line#'i3toast:fmt:'}"
 			;;
-		i3toast:msg:* | * )
+		i3toast:msg:* )
 			set_message "${line#'i3toast:msg:'}"
+			;;
+		* )
+			set_message "${line}"
 			;;
 		esac
 
