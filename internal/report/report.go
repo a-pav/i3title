@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"log"
 	"os"
-	"strings"
 	"syscall"
 
 	"go.i3wm.org/i3/v4"
@@ -68,7 +67,6 @@ func reporter(cfg *config.Config,
 		LF  = []byte{'\n'}
 	)
 	trim := trimmer(cfg.MaxWidth)
-	replace := replacer(cfg.Replacer)
 
 	doPrint := func() {
 		i := cfg.PHIndex
@@ -101,7 +99,7 @@ func reporter(cfg *config.Config,
 			report.WriteString(mode)
 			report.WriteString(cfg.ModeStyle[i+2:]) // 2 == len("%s")
 		}
-		replace(report, trim(title, cfg.MaxWidth-mw))
+		report.WriteTextString(trim(string(title), cfg.MaxWidth-mw))
 
 		doPrint()
 	}
@@ -112,25 +110,20 @@ func reporter(cfg *config.Config,
 		}
 		report.Reset()
 
-		if parts := bytes.SplitN(message, ARS, 6); len(parts) == 6 {
+		if parts := bytes.SplitN(message, ARS, 5); len(parts) == 5 {
 			var (
 				formatLeft  = parts[0]
 				formatRight = parts[1]
 				formatWidth = atoi(parts[2])
 				doTrim      = atoi(parts[3])
-				doReplacer  = atoi(parts[4])
-				msg         = parts[5]
+				msg         = parts[4]
 			)
 			report.Write(formatLeft)
 
-			if doTrim == 1 && doReplacer == 1 {
-				replace(report, trim(string(msg), cfg.MaxWidth-formatWidth))
-			} else if doReplacer == 1 {
-				replace(report, string(msg))
-			} else if doTrim == 1 {
-				report.WriteString(trim(string(msg), cfg.MaxWidth-formatWidth))
+			if doTrim == 1 {
+				report.WriteTextString(trim(string(msg), cfg.MaxWidth-formatWidth))
 			} else {
-				report.Write(msg) // raw write
+				report.WriteText(msg)
 			}
 
 			report.Write(formatRight)
@@ -142,7 +135,7 @@ func reporter(cfg *config.Config,
 	}
 
 	// The first two lines are i3bar protocol handshake and the third line is the
-	// odd one without having a comma `,` at its front, so these are printed verbatim.
+	// odd one without a comma `,` at its front, so these are printed verbatim.
 	for range 3 {
 		line0 = <-lineCh
 
@@ -287,18 +280,6 @@ func emitMessages(pipe string, bufferSize int, messageCh chan<- []byte, messageD
 		}
 		fi.Close()
 	}()
-}
-
-// replacer exists to avoid checking `cfg.Replacer != nil` in the main loop.
-func replacer(r *strings.Replacer) func(b *bbuf.BasicBuffer, s string) (int, error) {
-	if r != nil {
-		return func(b *bbuf.BasicBuffer, s string) (int, error) {
-			return r.WriteString(b, s)
-		}
-	}
-	return func(b *bbuf.BasicBuffer, s string) (int, error) {
-		return b.WriteString(s)
-	}
 }
 
 // trimmer returns a function that cuts string str at length max.

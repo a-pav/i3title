@@ -12,17 +12,15 @@ import (
 
 // Config is the Config struct.
 type Config struct {
-	BufSize   uint16   `json:"buffer_size"`       // Buffer size of both stdin scanner and stdout printer.
-	PH        string   `json:"placeholder"`       // Placerhoder that is defined in i3status config file. (default: I3TITLE)
-	PHIndex   int      `json:"placeholder_index"` // Index of placeholder in i3status output. To force recalculation on each print, explicitly set to -1.
-	MaxWidth  int      `json:"max_width"`         // Maximum width of printed report in characters.
-	ModeStyle string   `json:"mode_style"`        // Pango styling to be used for i3 modes.
-	Pipe      string   `json:"pipe"`              // FIFO named pipe for sending messages to overwrite the report.
-	OldNew    []string `json:"old_new"`           // List of old-new string pairs that will be used for the replacer.
+	BufSize   uint16 `json:"buffer_size"`       // Buffer size of both stdin scanner and stdout printer.
+	PH        string `json:"placeholder"`       // Placerhoder that is defined in i3status config file. (default: I3TITLE)
+	PHIndex   int    `json:"placeholder_index"` // Index of placeholder in i3status output. To force recalculation on each print, explicitly set to -1.
+	MaxWidth  int    `json:"max_width"`         // Maximum width of printed report in characters.
+	ModeStyle string `json:"mode_style"`        // Pango styling to be used for i3 modes.
+	Pipe      string `json:"pipe"`              // FIFO named pipe for sending messages to overwrite the report.
 
-	ModeStyleWidth int               `json:"-"` // Width of characters that will be added to report as the result of wrapping raw i3 mode in ModeStyle.
-	ModeStyleIndex int               `json:"-"` // Index of string `%s` inside ModeStyle.
-	Replacer       *strings.Replacer `json:"-"`
+	ModeStyleWidth int `json:"-"` // Width of characters that will be added to report as the result of wrapping raw i3 mode in ModeStyle.
+	ModeStyleIndex int `json:"-"` // Index of string `%s` inside ModeStyle.
 }
 
 // newConfig return a usable config.
@@ -31,17 +29,6 @@ func newConfig() *Config {
 		PH:       "I3TITLE",
 		BufSize:  3000, // more than it's necessary
 		MaxWidth: 60,   // less than it's possible
-		OldNew: []string{
-			"&", "&amp;",
-
-			">", "&gt;",
-
-			"<", "&lt;",
-
-			"\"", "&#34;", // "&#34;" is shorter than "&quot;".
-
-			"\\", "&#92;", // "&#92;" is shorter than "&Backslash;", or anything else.
-		},
 	}
 }
 
@@ -68,12 +55,6 @@ func Load() (*Config, error) {
 		cfg.ModeStyleWidth = len([]rune(raw)) - len("%s")
 	} else {
 		cfg.ModeStyleIndex = i
-	}
-
-	if ln := len(cfg.OldNew); ln > 0 && ln%2 == 0 {
-		cfg.Replacer = strings.NewReplacer(cfg.OldNew...)
-	} else {
-		log.Println(`config: load: ignored "old_new" list: zero or odd argument count`)
 	}
 
 	return cfg, nil
@@ -156,9 +137,7 @@ func saveJSON(dir string, cfg *Config) {
 }
 
 // discard discards parts of the config that are no longer needed.
-func discard(c *Config) {
-	c.OldNew = nil // release reference
-}
+func discard(c *Config) {}
 
 func getPath() (string, error) {
 	if path, provided, err := pathFromArgs(); provided {

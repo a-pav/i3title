@@ -31,7 +31,6 @@ parse_flags() {
 	set_format ""
 	set_offset 0
 	trim=0
-	replacer=0
 
 	while [ $# -gt 0 ]; do
 		case "$1" in
@@ -53,10 +52,6 @@ parse_flags() {
 			erase; :>"$QUEUE_PIDS"; exit 0 ;;
 		-T)
 			trim=1 ;;
-		-R)
-			replacer=1 ;;
-		-S)
-			trim=1; replacer=1 ;;
 		-*)
 			echo "Unknown option $1"
 			exit 1
@@ -72,8 +67,7 @@ is_important() {
 }
 
 set_message() {
-	# Strip control characters
-	message="$(printf '%s' "$1" | tr -cd '[:print:]\t' | tr '\t' ' ')"
+	message="$1"
 }
 
 set_format() {
@@ -145,12 +139,11 @@ read_stdin() {
 }
 
 send() {
-	printf '%s\036%s\036%s\036%s\036%s\036%s\n' \
+	printf '%s\036%s\036%s\036%s\036%s\n' \
 		"${offset}${format_left}" \
 		"${format_right}" \
 		"$((format_width+offset_width))" \
 		"${trim}" \
-		"${replacer}" \
 		"${message}" >"$I3TITLE_PIPE"
 }
 
