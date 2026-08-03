@@ -61,7 +61,7 @@ func reporter(cfg *config.Config,
 		ARS = []byte{'\036'} // ASCII Record Separator
 		LF  = []byte{'\n'}
 	)
-	trim := trimmer(cfg.MaxWidth)
+	// trim := trimmer(cfg.MaxWidth)
 
 	doPrint := func() {
 		i := cfg.PHIndex
@@ -94,7 +94,7 @@ func reporter(cfg *config.Config,
 			report.WriteString(mode)
 			report.WriteString(cfg.ModeStyle[i+2:]) // 2 == len("%s")
 		}
-		report.WriteTextString(trim(string(title), cfg.MaxWidth-mw))
+		report.WriteTextString(title, cfg.MaxWidth-mw)
 
 		doPrint()
 	}
@@ -105,22 +105,16 @@ func reporter(cfg *config.Config,
 		}
 		report.Reset()
 
-		if parts := bytes.SplitN(message, ARS, 5); len(parts) == 5 {
+		const nParts = 4 // number of parts
+		if parts := bytes.SplitN(message, ARS, nParts); len(parts) == nParts {
 			var (
 				formatLeft  = parts[0]
 				formatRight = parts[1]
 				formatWidth = atoi(parts[2])
-				doTrim      = atoi(parts[3])
-				msg         = parts[4]
+				msg         = parts[3]
 			)
 			report.Write(formatLeft)
-
-			if doTrim == 1 {
-				report.WriteTextString(trim(string(msg), cfg.MaxWidth-formatWidth))
-			} else {
-				report.WriteText(msg)
-			}
-
+			report.WriteText(msg, cfg.MaxWidth-formatWidth)
 			report.Write(formatRight)
 		} else {
 			report.WriteString("<span font='bold' fgcolor='#ff2b2b'>400 Bad Request</span>")
@@ -166,52 +160,6 @@ func reporter(cfg *config.Config,
 			messageDone <- struct{}{}
 		}
 	}
-}
-
-// trimmer returns a function that cuts string str at length max.
-func trimmer(maxWidth int) func(str string, max int) string {
-	// maxWidth as runes, used in rune counting. Held reference to avoid allocation.
-	width := make([]rune, maxWidth)
-
-	return func(str string, mxw int) string {
-		mxw = max(mxw, 0) // clamp maximum width at 0
-		if mxw == 0 {
-			return "…"
-		}
-		if len(str) <= mxw {
-			return str
-		}
-		// Count the runes.
-		s := width
-		i := 0
-		for _, r := range str {
-			if i == mxw {
-				s = s[:mxw]
-				n := lastIndexNonSpace(s) // n <= max-1
-				if n == mxw-1 {
-					s[n] = '…'
-				} else { // n <= max-2
-					s[n+1] = '…'
-					s = s[:n+2] // n+2 <= max
-				}
-				return string(s) // alloc
-			}
-			s[i] = r
-			i++
-		}
-
-		return str
-	}
-}
-
-// lastIndexNonSpace returns the index of last non-space character in s.
-func lastIndexNonSpace(s []rune) int {
-	for i := len(s) - 1; i >= 0; i-- {
-		if s[i] != ' ' {
-			return i
-		}
-	}
-	return -1 // All were space.
 }
 
 func atoi(b []byte) int {

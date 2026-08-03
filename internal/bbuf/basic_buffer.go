@@ -7,6 +7,8 @@ import (
 	"unicode/utf8"
 )
 
+const ellipsis = "…"
+
 // BasicBuffer is a fixed-size buffer of bytes that does not grow after initialization.
 // Implements [io.Writer] and [io.StringWriter]
 type BasicBuffer struct {
@@ -45,12 +47,23 @@ func (b *BasicBuffer) Bytes() []byte { return b.buf[:b.end] }
 
 func (b *BasicBuffer) Reset() { b.end = 0 }
 
-func (b *BasicBuffer) WriteText(p []byte) (int, error) {
+func (b *BasicBuffer) WriteText(p []byte, width int) (int, error) {
+	width = max(width, 0) // clamp width at 0
+	if width == 0 {
+		return b.markTruncated()
+	}
+
 	i := 0
-	for i < len(p) {
+	for n := 0; i < len(p); {
 		r, size := utf8.DecodeRune(p[i:])
 
 		if repl, ok := safeRune(r); ok {
+			if n == width-1 && len(p[i+size:]) > 0 {
+				b.markTruncated()
+				break
+			}
+			n++
+
 			if repl != "" {
 				// Write replacement string
 				if b.Available() < len(repl) {
@@ -72,12 +85,23 @@ func (b *BasicBuffer) WriteText(p []byte) (int, error) {
 	return i, nil
 }
 
-func (b *BasicBuffer) WriteTextString(s string) (int, error) {
+func (b *BasicBuffer) WriteTextString(s string, width int) (int, error) {
+	width = max(width, 0) // clamp width at 0
+	if width == 0 {
+		return b.markTruncated()
+	}
+
 	i := 0
-	for i < len(s) {
+	for n := 0; i < len(s); {
 		r, size := utf8.DecodeRuneInString(s[i:])
 
 		if repl, ok := safeRune(r); ok {
+			if n == width-1 && len(s[i+size:]) > 0 {
+				b.markTruncated()
+				break
+			}
+			n++
+
 			if repl != "" {
 				// Write replacement string
 				if b.Available() < len(repl) {
@@ -97,6 +121,13 @@ func (b *BasicBuffer) WriteTextString(s string) (int, error) {
 	}
 
 	return i, nil
+}
+
+func (b *BasicBuffer) markTruncated() (int, error) {
+	if b.Available() >= len(ellipsis) {
+		return b.WriteString(ellipsis)
+	}
+	return 0, nil
 }
 
 // safeRune evaluates a rune and returns a replacement string and a boolean.

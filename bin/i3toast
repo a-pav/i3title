@@ -139,11 +139,10 @@ read_stdin() {
 }
 
 send() {
-	printf '%s\036%s\036%s\036%s\036%s\n' \
+	printf '%s\036%s\036%s\036%s\n' \
 		"${offset}${format_left}" \
 		"${format_right}" \
 		"$((format_width+offset_width))" \
-		"${trim}" \
 		"${message}" >"$I3TITLE_PIPE"
 }
 
