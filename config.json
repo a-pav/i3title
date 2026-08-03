@@ -3,5 +3,9 @@
     "buffer_size": 1600,
     "max_width": 100,
     "mode_style": "<span fgcolor='black' bgcolor='white' font='italic bold'> %s </span> <span color='#666666'>|</span> ",
-    "pipe": "/tmp/i3title.pipe"
+    "pipe": "/tmp/i3title.pipe",
+    "format": "<span foreground='#a6f3fd' font='fira code medium 11'>%s</span>",
+    "align": "left",
+    "min_width": 1100,
+    "separator": false
 }

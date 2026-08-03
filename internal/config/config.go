@@ -19,6 +19,9 @@ type Config struct {
 	ModeStyle string `json:"mode_style"`        // Pango styling to be used for i3 modes.
 	Pipe      string `json:"pipe"`              // FIFO named pipe for sending messages to overwrite the report.
 
+	Format      string `json:"format"`
+	FormatIndex int    `json:"-"`
+
 	ModeStyleWidth int `json:"-"` // Width of characters that will be added to report as the result of wrapping raw i3 mode in [Config.ModeStyle].
 	ModeStyleIndex int `json:"-"` // Index of string `%s` inside [Config.ModeStyle].
 
@@ -59,7 +62,9 @@ func (c *Config) Print(line, fullText []byte) int {
 	n += copy(line[n:], `,"min_width":`)
 	n += copy(line[n:], c.MinWidth) // 1234
 	n += copy(line[n:], `,"full_text":"`)
-	n += copy(line[n:], fullText) // <span>...</span>
+	n += copy(line[n:], c.Format[:c.FormatIndex]) // <span>
+	n += copy(line[n:], fullText)
+	n += copy(line[n:], c.Format[c.FormatIndex+2:]) // </span>
 	n += copy(line[n:], `"},`)
 
 	return n
@@ -68,12 +73,14 @@ func (c *Config) Print(line, fullText []byte) int {
 // newConfig return a usable config.
 func newConfig() *Config {
 	return &Config{
-		PH:        "I3TITLE",
-		BufSize:   3000, // more than it's necessary
-		MaxWidth:  60,   // less than it's possible
-		Align:     "left",
-		Separator: "false",
-		MinWidth:  "400",
+		PH:          "I3TITLE",
+		BufSize:     3000, // more than it's necessary
+		MaxWidth:    60,   // less than it's possible
+		Align:       "left",
+		Separator:   "false",
+		MinWidth:    "400",
+		Format:      "%s",
+		FormatIndex: 0,
 	}
 }
 
@@ -100,6 +107,13 @@ func Load() (*Config, error) {
 		cfg.ModeStyleWidth = len([]rune(raw)) - len("%s")
 	} else {
 		cfg.ModeStyleIndex = i
+	}
+
+	if i := strings.Index(cfg.Format, "%s"); i >= 0 {
+		cfg.FormatIndex = i
+	} else { // reenforce the defaults
+		cfg.Format = "%s"
+		cfg.FormatIndex = 0
 	}
 
 	return cfg, nil
