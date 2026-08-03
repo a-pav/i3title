@@ -61,7 +61,6 @@ func reporter(cfg *config.Config,
 		ARS = []byte{'\036'} // ASCII Record Separator
 		LF  = []byte{'\n'}
 	)
-	// trim := trimmer(cfg.MaxWidth)
 
 	doPrint := func() {
 		i := cfg.PHIndex
@@ -73,10 +72,15 @@ func reporter(cfg *config.Config,
 				// forced to recalculate.
 			}
 		}
+		// c := 0
+		// c += copy(line1[c:], line0[:i])
+		// c += copy(line1[c:], report.Bytes())
+		// c += copy(line1[c:], line0[i+len(cfg.PH):])
+		// c += copy(line1[c:], LF)
 		c := 0
-		c += copy(line1[c:], line0[:i])
-		c += copy(line1[c:], report.Bytes())
-		c += copy(line1[c:], line0[i+len(cfg.PH):])
+		c += copy(line1[c:], line0[:2]) // len(",[") == 2
+		c += cfg.Print(line1[c:], report.Bytes())
+		c += copy(line1[c:], line0[2:])
 		c += copy(line1[c:], LF)
 
 		os.Stdout.Write(line1[:c])

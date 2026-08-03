@@ -19,16 +19,61 @@ type Config struct {
 	ModeStyle string `json:"mode_style"`        // Pango styling to be used for i3 modes.
 	Pipe      string `json:"pipe"`              // FIFO named pipe for sending messages to overwrite the report.
 
-	ModeStyleWidth int `json:"-"` // Width of characters that will be added to report as the result of wrapping raw i3 mode in ModeStyle.
-	ModeStyleIndex int `json:"-"` // Index of string `%s` inside ModeStyle.
+	ModeStyleWidth int `json:"-"` // Width of characters that will be added to report as the result of wrapping raw i3 mode in [Config.ModeStyle].
+	ModeStyleIndex int `json:"-"` // Index of string `%s` inside [Config.ModeStyle].
+
+	// Specific to `i3bar` protocol, we don't need them.
+	Align     string     `json:"align"`
+	Separator StringBool `json:"separator"`
+	MinWidth  StringInt  `json:"min_width"`
+}
+
+type StringBool string
+
+func (sb *StringBool) UnmarshalJSON(data []byte) error {
+	*sb = StringBool(data)
+	return nil
+}
+
+func (sb StringBool) MarshalJSON() ([]byte, error) {
+	return []byte(sb), nil
+}
+
+type StringInt string
+
+func (si *StringInt) UnmarshalJSON(data []byte) error {
+	*si = StringInt(data)
+	return nil
+}
+
+func (si StringInt) MarshalJSON() ([]byte, error) {
+	return []byte(si), nil
+}
+
+func (c *Config) Print(line, fullText []byte) int {
+	n := 0
+	n += copy(line[n:], `{"name":"i3title","markup":"pango","align":"`)
+	n += copy(line[n:], c.Align) // "left"
+	n += copy(line[n:], `","separator":`)
+	n += copy(line[n:], c.Separator) // false
+	n += copy(line[n:], `,"min_width":`)
+	n += copy(line[n:], c.MinWidth) // 1234
+	n += copy(line[n:], `,"full_text":"`)
+	n += copy(line[n:], fullText) // <span>...</span>
+	n += copy(line[n:], `"},`)
+
+	return n
 }
 
 // newConfig return a usable config.
 func newConfig() *Config {
 	return &Config{
-		PH:       "I3TITLE",
-		BufSize:  3000, // more than it's necessary
-		MaxWidth: 60,   // less than it's possible
+		PH:        "I3TITLE",
+		BufSize:   3000, // more than it's necessary
+		MaxWidth:  60,   // less than it's possible
+		Align:     "left",
+		Separator: "false",
+		MinWidth:  "400",
 	}
 }
 
