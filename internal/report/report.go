@@ -64,7 +64,7 @@ func reporter(cfg *config.Config,
 
 	doPrint := func() {
 		c := 0
-		c += copy(line1[c:], line0[:2]) // len(",[") == 2
+		c += copy(line1[c:], line0[:2]) // 2 == len(",[")
 		c += cfg.Print(line1[c:], report.Bytes())
 		c += copy(line1[c:], line0[2:])
 		c += copy(line1[c:], LF)
