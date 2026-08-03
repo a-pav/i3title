@@ -63,20 +63,6 @@ func reporter(cfg *config.Config,
 	)
 
 	doPrint := func() {
-		i := cfg.PHIndex
-		if i <= 0 {
-			i = bytes.Index(line0, []byte(cfg.PH))
-			if cfg.PHIndex == 0 { // omited? then cache it.
-				cfg.PHIndex = i
-			} else {
-				// forced to recalculate.
-			}
-		}
-		// c := 0
-		// c += copy(line1[c:], line0[:i])
-		// c += copy(line1[c:], report.Bytes())
-		// c += copy(line1[c:], line0[i+len(cfg.PH):])
-		// c += copy(line1[c:], LF)
 		c := 0
 		c += copy(line1[c:], line0[:2]) // len(",[") == 2
 		c += cfg.Print(line1[c:], report.Bytes())

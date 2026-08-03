@@ -12,12 +12,10 @@ import (
 
 // Config is the Config struct.
 type Config struct {
-	BufSize   uint16 `json:"buffer_size"`       // Buffer size of both stdin scanner and stdout printer.
-	PH        string `json:"placeholder"`       // Placerhoder that is defined in i3status config file. (default: I3TITLE)
-	PHIndex   int    `json:"placeholder_index"` // Index of placeholder in i3status output. To force recalculation on each print, explicitly set to -1.
-	MaxWidth  int    `json:"max_width"`         // Maximum width of printed report in characters.
-	ModeStyle string `json:"mode_style"`        // Pango styling to be used for i3 modes.
-	Pipe      string `json:"pipe"`              // FIFO named pipe for sending messages to overwrite the report.
+	BufSize   uint16 `json:"buffer_size"` // Buffer size of both stdin scanner and stdout printer.
+	MaxWidth  int    `json:"max_width"`   // Maximum width of printed report in characters.
+	ModeStyle string `json:"mode_style"`  // Pango styling to be used for i3 modes.
+	Pipe      string `json:"pipe"`        // FIFO named pipe for sending messages to overwrite the report.
 
 	Format      string `json:"format"`
 	FormatIndex int    `json:"-"`
@@ -73,7 +71,6 @@ func (c *Config) Print(line, fullText []byte) int {
 // newConfig return a usable config.
 func newConfig() *Config {
 	return &Config{
-		PH:          "I3TITLE",
 		BufSize:     3000, // more than it's necessary
 		MaxWidth:    60,   // less than it's possible
 		Align:       "left",
