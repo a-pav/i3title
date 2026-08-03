@@ -30,7 +30,7 @@ parse_flags() {
 	set_message ""
 	set_format ""
 	set_offset 0
-	trim=0
+	set_trim "$I3TITLE_MAX_WIDTH"
 
 	while [ $# -gt 0 ]; do
 		case "$1" in
@@ -51,7 +51,7 @@ parse_flags() {
 		-E)
 			erase; :>"$QUEUE_PIDS"; exit 0 ;;
 		-T)
-			trim=1 ;;
+			shift; set_trim "$1" ;;
 		-*)
 			echo "Unknown option $1"
 			exit 1
@@ -97,6 +97,10 @@ set_offset() {
 	fi
 }
 
+set_trim() {
+	trim="$1"
+}
+
 # Decide how to proceed execution
 decide_process() {
 	if is_important; then
@@ -125,6 +129,9 @@ read_stdin() {
 		i3toast:fmt:* )
 			set_format "${line#'i3toast:fmt:'}"
 			;;
+		i3toast:trm:* )
+			set_trim "${line#'i3toast:trm:'}"
+			;;
 		i3toast:msg:* )
 			set_message "${line#'i3toast:msg:'}"
 			;;
@@ -139,10 +146,11 @@ read_stdin() {
 }
 
 send() {
-	printf '%s\036%s\036%s\036%s\n' \
+	printf '%s\036%s\036%s\036%s\036%s\n' \
 		"${offset}${format_left}" \
 		"${format_right}" \
 		"$((format_width+offset_width))" \
+		"${trim}" \
 		"${message}" >"$I3TITLE_PIPE"
 }
 
