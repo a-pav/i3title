@@ -8,47 +8,38 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/a-pav/i3title/internal/bbuf"
 )
 
 // Config is the Config struct.
 type Config struct {
-	BufSize   uint16 `json:"buffer_size"` // Buffer size of both stdin scanner and stdout printer.
-	MaxWidth  int    `json:"max_width"`   // Maximum width of printed report in characters.
-	ModeStyle string `json:"mode_style"`  // Pango styling to be used for i3 modes.
-	Pipe      string `json:"pipe"`        // FIFO named pipe for sending messages to overwrite the report.
+	BufSize    uint16 `json:"buffer_size"` // Buffer size of both stdin scanner and stdout printer.
+	MaxWidth   int    `json:"max_width"`   // Maximum width of printed report in characters.
+	Format     string `json:"format"`
+	ModeFormat string `json:"mode_format"` // Pango styling to be used for i3 modes.
+	Pipe       string `json:"pipe"`        // FIFO named pipe for sending messages to overwrite the report.
 
-	Format      string `json:"format"`
-	FormatIndex int    `json:"-"`
+	// Specific to `i3bar` protocol, we don't use them.
+	Align     string    `json:"align"`
+	Separator rawString `json:"separator"` // boolean
+	MinWidth  rawString `json:"min_width"` // integer
 
-	ModeStyleWidth int `json:"-"` // Width of characters that will be added to report as the result of wrapping raw i3 mode in [Config.ModeStyle].
-	ModeStyleIndex int `json:"-"` // Index of string `%s` inside [Config.ModeStyle].
-
-	// Specific to `i3bar` protocol, we don't need them.
-	Align     string     `json:"align"`
-	Separator StringBool `json:"separator"`
-	MinWidth  StringInt  `json:"min_width"`
+	formatIndex     int `json:"-"` // Index of string `%s` inside [Config.Format].
+	modeFormatIndex int `json:"-"` // Index of string `%s` inside [Config.ModeFormat].
+	modeFormatWidth int `json:"-"` // Width of characters that will be added to report as the result of wrapping raw i3 mode in [Config.ModeFormat].
 }
 
-type StringBool string
+func (c *Config) WriteReport(report *bbuf.BasicBuffer, title, mode string) {
+	mw := 0 // mode visible width.
+	if c.ModeFormat != "" && mode != "default" {
+		mw = len([]rune(mode)) + c.modeFormatWidth
 
-func (sb *StringBool) UnmarshalJSON(data []byte) error {
-	*sb = StringBool(data)
-	return nil
-}
-
-func (sb StringBool) MarshalJSON() ([]byte, error) {
-	return []byte(sb), nil
-}
-
-type StringInt string
-
-func (si *StringInt) UnmarshalJSON(data []byte) error {
-	*si = StringInt(data)
-	return nil
-}
-
-func (si StringInt) MarshalJSON() ([]byte, error) {
-	return []byte(si), nil
+		report.WriteString(c.ModeFormat[:c.modeFormatIndex])
+		report.WriteString(mode)
+		report.WriteString(c.ModeFormat[c.modeFormatIndex+2:]) // 2 == len("%s")
+	}
+	report.WriteTextString(title, c.MaxWidth-mw)
 }
 
 func (c *Config) Print(line, fullText []byte) int {
@@ -60,12 +51,23 @@ func (c *Config) Print(line, fullText []byte) int {
 	n += copy(line[n:], `,"min_width":`)
 	n += copy(line[n:], c.MinWidth) // 1234
 	n += copy(line[n:], `,"full_text":"`)
-	n += copy(line[n:], c.Format[:c.FormatIndex]) // <span>
+	n += copy(line[n:], c.Format[:c.formatIndex]) // <span>
 	n += copy(line[n:], fullText)
-	n += copy(line[n:], c.Format[c.FormatIndex+2:]) // </span>
+	n += copy(line[n:], c.Format[c.formatIndex+2:]) // </span>
 	n += copy(line[n:], `"},`)
 
 	return n
+}
+
+type rawString string
+
+func (rs *rawString) UnmarshalJSON(data []byte) error {
+	*rs = rawString(data)
+	return nil
+}
+
+func (rs rawString) MarshalJSON() ([]byte, error) {
+	return []byte(rs), nil
 }
 
 // newConfig return a usable config.
@@ -77,7 +79,7 @@ func newConfig() *Config {
 		Separator:   "false",
 		MinWidth:    "400",
 		Format:      "%s",
-		FormatIndex: 0,
+		formatIndex: 0,
 	}
 }
 
@@ -97,20 +99,20 @@ func Load() (*Config, error) {
 		log.Printf("config: loaded from: %s", path)
 	}
 
-	if i := strings.Index(cfg.ModeStyle, "%s"); i >= 0 {
-		cfg.ModeStyleIndex = i
+	if i := strings.Index(cfg.ModeFormat, "%s"); i >= 0 {
+		cfg.modeFormatIndex = i
 		// Strip any char that doesn't add to the width.
-		raw := regexp.MustCompile("</?[^>]+>").ReplaceAllString(cfg.ModeStyle, "")
-		cfg.ModeStyleWidth = len([]rune(raw)) - len("%s")
+		raw := regexp.MustCompile("</?[^>]+>").ReplaceAllString(cfg.ModeFormat, "")
+		cfg.modeFormatWidth = len([]rune(raw)) - len("%s")
 	} else {
-		cfg.ModeStyleIndex = i
+		cfg.modeFormatIndex = i
 	}
 
 	if i := strings.Index(cfg.Format, "%s"); i >= 0 {
-		cfg.FormatIndex = i
+		cfg.formatIndex = i
 	} else { // reenforce the defaults
 		cfg.Format = "%s"
-		cfg.FormatIndex = 0
+		cfg.formatIndex = 0
 	}
 
 	return cfg, nil

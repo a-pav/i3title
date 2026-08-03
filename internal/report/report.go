@@ -33,7 +33,7 @@ func Run(cfg *config.Config) error {
 
 	go emitTitles(titleCh)
 
-	if cfg.ModeStyleIndex < 0 {
+	if cfg.ModeFormat == "" {
 		close(modeCh)
 	} else {
 		go emitModes(modeCh)
@@ -73,15 +73,7 @@ func reporter(cfg *config.Config,
 	}
 	newReport := func() {
 		report.Reset()
-		mw := 0 // mode visible width.
-		if i := cfg.ModeStyleIndex; i >= 0 && mode != "default" {
-			mw = len([]rune(mode)) + cfg.ModeStyleWidth
-
-			report.WriteString(cfg.ModeStyle[:i])
-			report.WriteString(mode)
-			report.WriteString(cfg.ModeStyle[i+2:]) // 2 == len("%s")
-		}
-		report.WriteTextString(title, cfg.MaxWidth-mw)
+		cfg.WriteReport(report, title, mode)
 
 		doPrint()
 	}
