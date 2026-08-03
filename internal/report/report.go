@@ -82,9 +82,6 @@ func reporter(cfg *config.Config,
 		os.Stdout.Write(line1[:c])
 	}
 	newReport := func() {
-		if len(message) > 0 {
-			return // report doesn't update unless message is cleared.
-		}
 		report.Reset()
 		mw := 0 // mode visible width.
 		if i := cfg.ModeStyleIndex; i >= 0 && mode != "default" {
@@ -99,10 +96,6 @@ func reporter(cfg *config.Config,
 		doPrint()
 	}
 	newMessage := func() {
-		if len(message) == 0 { // clearing message?
-			newReport()
-			return
-		}
 		report.Reset()
 
 		const nParts = 5 // number of parts
@@ -145,19 +138,27 @@ func reporter(cfg *config.Config,
 			doPrint() // just print
 			lineDone <- struct{}{}
 		case title = <-titleCh:
-			newReport()
+			if len(message) == 0 {
+				newReport()
+			}
 		case mode, ok = <-modeCh:
 			if !ok {
 				modeCh = nil // disable
 				continue
 			}
-			newReport()
+			if len(message) == 0 {
+				newReport()
+			}
 		case message, ok = <-messageCh:
 			if !ok {
 				messageCh = nil // disable
 				continue
 			}
-			newMessage()
+			if len(message) == 0 { // clearing message?
+				newReport()
+			} else {
+				newMessage()
+			}
 			messageDone <- struct{}{}
 		}
 	}
