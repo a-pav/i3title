@@ -1,8 +1,6 @@
 package config
 
-import (
-	"github.com/a-pav/i3title/internal/bbuf"
-)
+import "github.com/a-pav/i3title/internal/bbuf"
 
 // Config is the Config struct.
 type Config struct {
