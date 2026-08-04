@@ -20,7 +20,7 @@ type Config struct {
 	modeFormatWidth int `json:"-"` // Width of characters that will be added to report as the result of wrapping raw i3 mode in [Config.ModeFormat].
 }
 
-func (c *Config) WriteReport(report *bbuf.BasicBuffer, title, mode string) {
+func (c *Config) WriteReport(report *bbuf.Buffer, title, mode string) {
 	mw := 0 // mode visible width.
 	if c.ModeFormat != "" && mode != "default" {
 		mw = len([]rune(mode)) + c.modeFormatWidth

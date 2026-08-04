@@ -9,45 +9,45 @@ import (
 
 const ellipsis = "…"
 
-// BasicBuffer is a fixed-size buffer of bytes that does not grow after initialization.
+// Buffer is a fixed-size buffer of bytes that does not grow after initialization.
 // Implements [io.Writer] and [io.StringWriter]
-type BasicBuffer struct {
+type Buffer struct {
 	buf []byte
 	end int
 }
 
 var (
-	_ io.Writer       = (*BasicBuffer)(nil)
-	_ io.StringWriter = (*BasicBuffer)(nil)
+	_ io.Writer       = (*Buffer)(nil)
+	_ io.StringWriter = (*Buffer)(nil)
 )
 
 // New returns a basic buffer with a fixed size of n.
-func New(n int) *BasicBuffer {
-	return &BasicBuffer{
+func New(n int) *Buffer {
+	return &Buffer{
 		buf: make([]byte, n),
 	}
 }
 
-func (b *BasicBuffer) Write(p []byte) (int, error) {
+func (b *Buffer) Write(p []byte) (int, error) {
 	n := copy(b.buf[b.end:], p)
 	b.end += n
 	return n, nil
 }
 
-func (b *BasicBuffer) WriteString(s string) (int, error) {
+func (b *Buffer) WriteString(s string) (int, error) {
 	n := copy(b.buf[b.end:], s)
 	b.end += n
 	return n, nil
 }
 
 // Available returns how many bytes are unused in the buffer.
-func (b *BasicBuffer) Available() int { return len(b.buf) - b.end }
+func (b *Buffer) Available() int { return len(b.buf) - b.end }
 
-func (b *BasicBuffer) Bytes() []byte { return b.buf[:b.end] }
+func (b *Buffer) Bytes() []byte { return b.buf[:b.end] }
 
-func (b *BasicBuffer) Reset() { b.end = 0 }
+func (b *Buffer) Reset() { b.end = 0 }
 
-func (b *BasicBuffer) WriteText(p []byte, width int) (int, error) {
+func (b *Buffer) WriteText(p []byte, width int) (int, error) {
 	width = max(width, 0) // clamp width at 0
 	if width == 0 {
 		return b.markTruncated()
@@ -85,7 +85,7 @@ func (b *BasicBuffer) WriteText(p []byte, width int) (int, error) {
 	return i, nil
 }
 
-func (b *BasicBuffer) WriteTextString(s string, width int) (int, error) {
+func (b *Buffer) WriteTextString(s string, width int) (int, error) {
 	width = max(width, 0) // clamp width at 0
 	if width == 0 {
 		return b.markTruncated()
@@ -123,7 +123,7 @@ func (b *BasicBuffer) WriteTextString(s string, width int) (int, error) {
 	return i, nil
 }
 
-func (b *BasicBuffer) markTruncated() (int, error) {
+func (b *Buffer) markTruncated() (int, error) {
 	if b.Available() >= len(ellipsis) {
 		return b.WriteString(ellipsis)
 	}
