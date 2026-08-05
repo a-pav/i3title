@@ -25,6 +25,7 @@ setup_env() {
 
 parse_flags() {
 	important=0
+	rawMode=0
 	timeout=4   # default
 
 	set_message ""
@@ -52,6 +53,8 @@ parse_flags() {
 			erase; :>"$QUEUE_PIDS"; exit 0 ;;
 		-T)
 			shift; set_trim "$1" ;;
+		-R)
+			rawMode=1 ;;
 		-*)
 			echo "Unknown option $1"
 			exit 1
@@ -123,6 +126,9 @@ decide_process() {
 read_stdin() {
 	while IFS= read -r line || [ -n "$line" ]; do
 		case "$line" in
+		i3toast:ers )
+			erase; continue
+			;;
 		i3toast:off:* )
 			set_offset "${line#'i3toast:off:'}"
 			;;
@@ -146,16 +152,17 @@ read_stdin() {
 }
 
 send() {
-	printf '%s\036%s\036%s\036%s\036%s\n' \
+	printf '%s\036%s\036%s\036%s\036%s\036%s\n' \
 		"${offset}${format_left}" \
 		"${format_right}" \
 		"$((format_width+offset_width))" \
 		"${trim}" \
+		"${rawMode}" \
 		"${message}" >"$I3TITLE_PIPE"
 }
 
 erase() {
-	rm "$ERASE_PID"
+	rm "$ERASE_PID" >/dev/null 2>&1
 	printf '\n' >"$I3TITLE_PIPE"
 }
 

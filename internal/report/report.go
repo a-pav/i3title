@@ -80,17 +80,22 @@ func reporter(cfg *config.Config,
 	newMessage := func() {
 		report.Reset()
 
-		const nParts = 5 // number of parts
+		const nParts = 6 // number of parts
 		if parts := bytes.SplitN(message, ARS, nParts); len(parts) == nParts {
 			var (
 				formatLeft  = parts[0]
 				formatRight = parts[1]
 				formatWidth = atoi(parts[2])
 				trim        = atoi(parts[3])
-				msg         = parts[4]
+				rawMode     = atoi(parts[4])
+				msg         = parts[5]
 			)
 			report.Write(formatLeft)
-			report.WriteText(msg, min(trim, cfg.MaxWidth-formatWidth))
+			if rawMode == 1 {
+				report.Write(msg)
+			} else {
+				report.WriteText(msg, min(trim, cfg.MaxWidth-formatWidth))
+			}
 			report.Write(formatRight)
 		} else {
 			report.WriteString("<span font='bold' fgcolor='#ff2b2b'>400 Bad Request</span>")
