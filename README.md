@@ -36,8 +36,10 @@ format it on the fly, and trigger instant updates—all without touching your co
 ```bash
 git clone https://github.com/a-pav/i3title
 cd i3title
-make build
+make
+make install
 ```
+*(By default, this installs the binaries to `~/.local/bin`. Make sure this directory is in your `$PATH`.)*
 
 ---
 
