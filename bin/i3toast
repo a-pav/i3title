@@ -50,7 +50,7 @@ parse_flags() {
 		-e)
 			erase; exit 0 ;;
 		-E)
-			erase; :>"$QUEUE_PIDS"; exit 0 ;;
+			:>"$QUEUE_PIDS"; erase; exit 0 ;;
 		-T)
 			shift; set_trim "$1" ;;
 		-R)
@@ -137,9 +137,6 @@ read_stdin() {
 			;;
 		i3toast:trm:* )
 			set_trim "${line#'i3toast:trm:'}"
-			;;
-		i3toast:msg:* )
-			set_message "${line#'i3toast:msg:'}"
 			;;
 		* )
 			set_message "${line}"
