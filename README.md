@@ -20,6 +20,10 @@ format it on the fly, and trigger instant updates—all without touching your co
 ## Demo
 
 
+
+https://github.com/user-attachments/assets/7846a025-db57-4143-86a4-0313c08b74e7
+
+
 ## Features
  - **Zero Configuration Defaults** – Shows the active window title out of the box.
  - **Fully Customizable** – Accepts arbitrary text via standard input or command-line arguments, letting you display system metrics, weather, custom scripts output, or anything else.
