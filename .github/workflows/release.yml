@@ -9,8 +9,15 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  build:
+    name: Build ${{ matrix.arch }}
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        arch:
+          - amd64
+          - arm64
 
     steps:
       - name: Check out source
@@ -23,6 +30,9 @@ jobs:
           cache: true
 
       - name: Build
+        env:
+          GOOS: linux
+          GOARCH: ${{ matrix.arch }}
         run: make build
 
       - name: Package
@@ -32,8 +42,27 @@ jobs:
           mkdir -p dist/package
           cp i3title bin/i3toast dist/package/
           tar -C dist/package \
-            -czf "dist/i3title-${VERSION}-linux-amd64.tar.gz" \
+            -czf "dist/i3title-${VERSION}-linux-${{ matrix.arch }}.tar.gz" \
             i3title i3toast
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: i3title-linux-${{ matrix.arch }}
+          path: dist/*.tar.gz
+
+  release:
+    name: Create release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: i3title-linux-*
+          merge-multiple: true
 
       - name: Create release
         env:
@@ -41,6 +70,6 @@ jobs:
           VERSION: ${{ github.ref_name }}
         run: |
           gh release create "$VERSION" \
-            "dist/i3title-${VERSION}-linux-amd64.tar.gz" \
+            dist/*.tar.gz \
             --title "$VERSION" \
             --generate-notes
