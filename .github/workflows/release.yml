@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build
+        run: make build
+
+      - name: Package
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          mkdir -p dist/i3title-${VERSION}-linux-amd64
+          cp i3title bin/i3toast dist/i3title-${VERSION}-linux-amd64/
+          tar -C dist -czf \
+            dist/i3title-${VERSION}-linux-amd64.tar.gz \
+            i3title-${VERSION}-linux-amd64
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          gh release create "$VERSION" \
+            "dist/i3title-${VERSION}-linux-amd64.tar.gz" \
+            --title "$VERSION" \
+            --generate-notes
