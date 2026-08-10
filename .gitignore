@@ -1,5 +1,6 @@
 /.vscode
 /i3title
+/demo
 /main
 /*.out
 __debug_bin*
