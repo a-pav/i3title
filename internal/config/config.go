@@ -4,16 +4,14 @@ import "github.com/a-pav/i3title/internal/bbuf"
 
 // Config is the Config struct.
 type Config struct {
-	BufSize    uint16 `json:"buffer_size"` // Buffer size of both stdin scanner and stdout printer.
-	MaxWidth   int    `json:"max_width"`   // Maximum width of printed report in characters.
-	Format     string `json:"format"`      // General format for i3title module.
-	ModeFormat string `json:"mode_format"` // Format for i3 modes.
-	Pipe       string `json:"pipe"`        // FIFO named pipe for sending messages to overwrite the report.
-
-	// Specific to `i3bar` protocol, we don't use them.
-	Align     string    `json:"align"`
-	Separator rawString `json:"separator"` // boolean
-	MinWidth  rawString `json:"min_width"` // integer
+	Format     string    `json:"format"`      // The general format for i3title module.
+	ModeFormat string    `json:"mode_format"` // Format for i3 modes.
+	MinWidth   rawString `json:"min_width"`   // integer
+	MaxWidth   int       `json:"max_width"`   // Maximum width of printed report in characters.
+	Align      string    `json:"align"`       // Text alignment.
+	Separator  rawString `json:"separator"`   // boolean
+	Pipe       string    `json:"pipe"`        // FIFO named pipe for sending messages to overwrite the report.
+	BufSize    uint16    `json:"buffer_size"` // Buffer size of both stdin scanner and stdout printer.
 
 	formatIndex     int `json:"-"` // Index of string `%s` inside [Config.Format].
 	modeFormatIndex int `json:"-"` // Index of string `%s` inside [Config.ModeFormat].
@@ -63,7 +61,7 @@ func (rs rawString) MarshalJSON() ([]byte, error) {
 // newConfig return a usable config.
 func newConfig() *Config {
 	return &Config{
-		BufSize:     3000, // more than it's necessary
+		BufSize:     4096, // more than it's necessary
 		MaxWidth:    60,   // less than it's possible
 		Align:       "left",
 		Separator:   "false",
