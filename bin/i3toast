@@ -8,13 +8,16 @@ readonly QUEUE_PIDS="$RUN_DIR/queue.pids"
 
 usage() {
 	cat <<EOF
-Usage: i3toast [OPTIONS]
+NAME
+  i3toast - send messages to i3title
 
-Send messages to i3title.
+SYNOPSIS
+  i3toast [OPTIONS]
+  STDIN | i3toast [OPTIONS]
 
-OPTIONS:
+OPTIONS
   -m MESSAGE    Display MESSAGE.
-  -f FORMAT     Format the message. The format should contain one %s.
+  -f FORMAT     Format the message. The FORMAT should contain one %s.
   -o OFFSET     Add OFFSET spaces before the message.
   -T TRIM       Trim the message to TRIM characters.
   -t TIMEOUT    Keep the message for TIMEOUT (default: 4 seconds).
@@ -22,14 +25,16 @@ OPTIONS:
   -i            Mark the message as important. Important messages are queued
                 and displayed one at a time. Transient (unimportant) messages
                 cannot interrupt them while they are running.
-  -R            Send the message in raw mode.
+  -R            Send the message in RAW MODE.
   -w            Print the configured i3title maximum width.
   -e            Erase the current message.
   -E            Clear the queue and erase the current message.
   -h            Print usage.
+  -v            Print version.
 
-STDIN:
-  When input is provided on stdin, each line is treated as a separate message.
+
+STDIN
+  When input is provided on stdin, each line is treated as a separate MESSAGE.
 
   You can tag the output like i3toast:<cmd>[:<payload>] to instruct
   i3toast itself mid-stream:
@@ -39,7 +44,7 @@ STDIN:
       i3toast:fmt:FORMAT    Set the message format.
       i3toast:trm:TRIM      Set the message trim width.
 
-RAW MODE:
+RAW MODE
   By default, i3title trims messages to the configured max_width and sanitizes
   them for safe display in i3bar. Raw mode (-R) disables both safeguards and
   passes the message directly to i3bar. Use it only when you have complete
@@ -60,11 +65,11 @@ RAW MODE:
 
     head -c 100 /dev/urandom | i3toast -R  # Don't do this
 
-EXAMPLES:
-  i3toast -m 'Hello!'
-  echo 'Hello!' | i3toast
-  i3toast -i -m 'Important message'
-  i3toast -t 10 -m 'Shown for ten seconds'
+EXAMPLES
+  i3toast -m "Hello!"
+  echo "Hello!" | i3toast
+  i3toast -i -m "Important message"
+  i3toast -t 5 -o 10 -m "Shown for 5 seconds, offseted by 10 spaces"
 EOF
 }
 
