@@ -39,9 +39,7 @@ jobs:
         env:
           VERSION: ${{ github.ref_name }}
         run: |
-          mkdir -p dist/package
-          cp i3title bin/i3toast dist/package/
-          tar -C dist/package \
+          tar -C dist \
             -czf "dist/i3title-${VERSION}-linux-${{ matrix.arch }}.tar.gz" \
             i3title i3toast
 

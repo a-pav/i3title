@@ -4,10 +4,15 @@ APP_NAME := i3title
 PREFIX ?= $(HOME)/.local
 BINDIR ?= $(PREFIX)/bin
 
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+
 # Go build variables
 GO ?= go
 GOFLAGS ?= -trimpath
-LDFLAGS ?= -s -w
+LDFLAGS ?= -s -w -X main.Version=$(VERSION)
+
+# Build output directory
+BUILD_DIR := dist
 
 .PHONY: all build install uninstall clean
 
@@ -15,13 +20,16 @@ LDFLAGS ?= -s -w
 all: build
 
 build:
-	GO111MODULE=on CGO_ENABLED=0 $(GO) build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o $(APP_NAME) ./cmd/$(APP_NAME)
+	@mkdir -p $(BUILD_DIR)
+	@GO111MODULE=on CGO_ENABLED=0 $(GO) build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o $(BUILD_DIR)/$(APP_NAME) ./cmd/$(APP_NAME)
+	@cp bin/i3toast $(BUILD_DIR)/i3toast
+	@sed -i 's/VERSION="@VERSION@"$$/VERSION="$(VERSION)"/' $(BUILD_DIR)/i3toast
 
 install: build
 	@echo "Installing to $(BINDIR)..."
 	install -d $(BINDIR)
-	install -m 755 $(APP_NAME) $(BINDIR)/$(APP_NAME)
-	install -m 755 bin/i3toast $(BINDIR)/i3toast
+	install -m 755 $(BUILD_DIR)/$(APP_NAME) $(BINDIR)/$(APP_NAME)
+	install -m 755 $(BUILD_DIR)/i3toast $(BINDIR)/i3toast
 	@echo "Done!"
 
 uninstall:
@@ -31,4 +39,4 @@ uninstall:
 
 clean:
 	@echo "Cleaning up..."
-	rm -f $(APP_NAME)
+	rm -rf $(BUILD_DIR)

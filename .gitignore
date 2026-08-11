@@ -1,5 +1,6 @@
 /.vscode
 /i3title
+/dist
 /demo
 /main
 /*.out

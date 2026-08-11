@@ -2,6 +2,8 @@
 
 # shellcheck disable=3043 # allow 'local' keyword In POSIX sh
 
+readonly VERSION="@VERSION@"
+
 readonly RUN_DIR='/dev/shm/i3toast'
 readonly ERASE_PID="$RUN_DIR/erase.pid"
 readonly QUEUE_PIDS="$RUN_DIR/queue.pids"
@@ -124,6 +126,8 @@ parse_flags() {
 			rawMode=1 ;;
 		-h)
 			usage; exit 0 ;;
+		-v)
+			echo "i3toast $VERSION"; exit 0 ;;
 		-*)
 			echo "Unknown option: $1"
 			echo "Use i3toast -h to print usage."
