@@ -4,6 +4,8 @@
 
 readonly VERSION="@VERSION@"
 
+readonly DEFAULT_TIMEOUT=4
+
 readonly RUN_DIR='/dev/shm/i3toast'
 readonly ERASE_PID="$RUN_DIR/erase.pid"
 readonly QUEUE_PIDS="$RUN_DIR/queue.pids"
@@ -95,7 +97,8 @@ setup_env() {
 parse_flags() {
 	important=0
 	rawMode=0
-	timeout=4   # default
+	timeout=${DEFAULT_TIMEOUT}        # default
+	timeoutSTDIN=${DEFAULT_TIMEOUT}   # default
 
 	set_message ""
 	set_format ""
@@ -107,7 +110,20 @@ parse_flags() {
 		-m)
 			shift; set_message "$1" ;;
 		-t)
-			shift; timeout="$1" ;;
+			shift
+			case "$1" in
+			*,*)
+				timeout="$(echo "$1" | cut -d',' -f1 | xargs)"
+				timeoutSTDIN="$(echo "$1" | cut -d',' -f2 | xargs)"
+				;;
+			*)
+				timeout="$1"
+				timeoutSTDIN="$1"
+				;;
+			esac
+			: "${timeout:=${DEFAULT_TIMEOUT}}"
+			: "${timeoutSTDIN:=${DEFAULT_TIMEOUT}}"
+			;;
 		-f)
 			shift; set_format "$1" ;;
 		-o)
@@ -198,10 +214,27 @@ decide_process() {
 }
 
 read_stdin() {
+	local erase_pid
+	_erase() { printf '\n' >"$I3TITLE_PIPE"; }
+	_erase_cancel() { kill -s TERM "$erase_pid" >/dev/null 2>&1; }
+	_erase_launch() {
+		if [ "$timeoutSTDIN" != '-1' ]; then
+			(sleep "$timeoutSTDIN"; _erase) &
+			erase_pid=$!
+		fi
+	}
+
 	while IFS= read -r line || [ -n "$line" ]; do
+		if queue_busy && [ "$(queue_top)" != $$ ]; then
+			_erase_cancel
+			continue # skip
+		fi
+
 		case "$line" in
 		i3toast:ers )
-			erase; continue
+			_erase_cancel
+			_erase
+			continue
 			;;
 		i3toast:off:* )
 			set_offset "${line#'i3toast:off:'}"
@@ -217,9 +250,15 @@ read_stdin() {
 			;;
 		esac
 
+		_erase_cancel
+
 		send
 
+		_erase_launch
+
 	done </dev/stdin
+
+	_erase_cancel
 }
 
 send() {
@@ -270,9 +309,14 @@ queue_pop() {
 	sed -i '/^'"$1"'$/d' "$QUEUE_PIDS"
 }
 
+# Echo pid at the top of the queue
+queue_top() {
+	head -n1 "$QUEUE_PIDS"
+}
+
 # Wake the next process in queue
 queue_next() {
-	local next_pid; next_pid="$(head -n1 "$QUEUE_PIDS")"
+	local next_pid; next_pid="$(queue_top)"
 	if [ -n "$next_pid" ] && kill -0 "$next_pid"; then
 		kill -s CONT "$next_pid"
 	fi
