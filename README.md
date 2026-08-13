@@ -26,7 +26,7 @@ https://github.com/user-attachments/assets/7846a025-db57-4143-86a4-0313c08b74e7
 
 ## Features
  - **Zero Configuration Defaults** – Shows the active window title out of the box.
- - **Fully Customizable** – Accepts arbitrary text via standard input or command-line arguments, letting you display system metrics, weather, custom scripts output, or anything else.
+ - **Fully Customizable** – Accepts arbitrary text via standard input or command-line arguments, letting you display system metrics, weather, API results, custom scripts output, or anything else.
  - **Background Workspace Awareness** – Reports on work being done on other workspaces, keeping you informed of background activity without needing to switch views.
  - **Real-time Updates** – Instantly refreshes on workspace switches, window focus changes, background workspace activity, i3 mode toggles, and new piped data.
  - **i3bar Native** – Designed specifically for i3bar, respecting your existing configurations.
@@ -43,7 +43,12 @@ cd i3title
 make
 make install
 ```
-*(By default, this installs the binaries to `~/.local/bin`. Make sure this directory is in your `$PATH`.)*
+
+### From release
+```sh
+curl -fsSL https://raw.githubusercontent.com/a-pav/i3title/refs/heads/master/scripts/install.sh | sh
+```
+*(By default, these install the binaries to `~/.local/bin`. Make sure this directory is in your `$PATH`.)*
 
 ---
 
@@ -89,7 +94,7 @@ on your config, but once you find your ideal setup, you won't need to change it 
 ## Displaying Your Data: Enter **`i3toast`**
 
 As an i3 user, you are likely familiar with `i3-msg` for sending IPC messages to the
-window manager from the command line and scripts. `i3toast` is the exact same concept,
+window manager from the command line and scripts. `i3toast` is the same concept,
 but for sending messages to `i3title`. (In fact, it was originally named
 `i3title-msg` for this reason.)
 
@@ -101,7 +106,7 @@ that appear on your bar and disappear after a timeout (default is 4 seconds.)
 Send a quick, temporary update from a script or keybind. Perfect for volume or brightness adjustments:
 
 ```sh
-# This could be from your volume adjustment script, informing you about the change.
+# This could be from a volume adjustment script, informing you about the change.
 i3toast -m "🔊 ${volume}%" -f "<span font='bold italic 15'>%s</span>"
 ```
 
@@ -117,12 +122,13 @@ Common use cases include:
         date '+%A, %-d %B %Y --- %Y-%m-%d %H:%M:%S'
         sleep 1
     done |
-        i3toast -t 0 -f "<span font='14'>📅</span> <span color='#CFD8DC'>%s</span>"
+        i3toast -t -1,0 -f "<span font='14'>📅</span> <span color='#CFD8DC'>%s</span>"
     ```
+    <img width="753" height="25" alt="Screenshot from 2026-08-08 15-08-57" src="https://github.com/user-attachments/assets/1151ff80-aa15-4910-a277-c27271b80e58" />
 
   - **Pro tip:** Displaying information on-demand like this means you can disable those
 corresponding status modules in your i3status config. This frees up space, giving
-`i3title` more room to fit longer window titles and data.
+`i3title` more room to fit longer data and window titles.
 
 - Print to the terminal, but keep the tail with you on whatever workspace you switch to:
     ```sh
@@ -136,17 +142,13 @@ corresponding status modules in your i3status config. This frees up space, givin
         # Whatever you print to stdout is considered a message.
         echo "This is a message!"
 
-        ### You can tag the stdout like `i3toast:<cmd>[:<payload>]` to instruct
-        ### i3toast itself mid-stream:
+        ### You can tag the output like i3toast:<flag>[:<payload>] to adjust the
+        ### characteristics of the current stream:
 
-        # Set the offset
-        echo "i3toast:off:10"
-        # Set the format
-        echo "i3toast:fmt:<span color='red'>PREFIX:</span> %s"
-        # Set the trimming length
-        echo "i3toast:trm:60"
-        # Erase whatever is currently on the bar
-        echo "i3toast:ers"
+        echo "i3toast:-e"           # Erase the current message
+        echo "i3toast:-f:<b>%s</b>" # Set the format
+        echo "i3toast:-o:10"        # Set the offset
+        echo "i3toast:-T:60"        # Set the trim width
 
     } | i3toast
 
@@ -156,42 +158,86 @@ corresponding status modules in your i3status config. This frees up space, givin
 <details>
     <summary><b>Full usage and options</b></summary>
 
-```
+```text
+
 NAME
-  i3toast - send messages to i3title
+      i3toast - send messages to i3title
 
 SYNOPSIS
-  i3toast [OPTIONS]
-  STDIN | i3toast [OPTIONS]
+      i3toast [OPTIONS]
+      STDIN | i3toast [OPTIONS]
 
 OPTIONS
-  -m MESSAGE    Display MESSAGE.
-  -f FORMAT     Format the message. The FORMAT should contain one %s.
-  -o OFFSET     Add OFFSET spaces before the message.
-  -T TRIM       Trim the message to TRIM characters.
-  -t TIMEOUT    Keep the message for TIMEOUT (default: 4 seconds).
-                Use -1 to keep it until explicitly erased or overwritten.
-  -i            Mark the message as important. Important messages are queued
-                and displayed one at a time. Transient (unimportant) messages
-                cannot interrupt them while they are running.
-  -R            Send the message in RAW MODE.
-  -w            Print the configured i3title maximum width.
-  -e            Erase the current message.
-  -E            Clear the queue and erase the current message.
-  -h            Print usage.
-  -v            Print version.
+      -m MESSAGE    Display MESSAGE.
+      -f FORMAT     Format the message. The FORMAT should contain one %s.
+      -o OFFSET     Add OFFSET spaces before the message.
+      -T TRIM       Trim the message to TRIM characters.
+      -t TIMEOUT    Keep the message for TIMEOUT (default: 4 seconds).
+      -i            Mark the message as important. Important messages are queued
+                    and displayed one at a time. Transient (unimportant) messages
+                    cannot interrupt them while they are running.
+      -R            Send the message in RAW MODE.
+      -w            Print the configured i3title maximum width.
+      -e            Erase the current message.
+      -E            Clear the queue and erase the current message.
+      -h            Print usage.
+      -v            Print version.
 
 
 STDIN
-  When input is provided on stdin, each line is treated as a separate MESSAGE.
+  When input is provided on stdin, each line is treated as a separate message.
 
-  You can tag the output like i3toast:<cmd>[:<payload>] to instruct
-  i3toast itself mid-stream:
+  You can tag the output like i3toast:<flag>[:<payload>] to adjust the
+  characteristics of the current stream:
 
-      i3toast:ers           Erase the current message.
-      i3toast:off:OFFSET    Set the message offset.
-      i3toast:fmt:FORMAT    Set the message format.
-      i3toast:trm:TRIM      Set the message trim width.
+      i3toast:-e           Erase the current message.
+      i3toast:-f:FORMAT    Set the message format.
+      i3toast:-o:OFFSET    Set the message offset.
+      i3toast:-T:TRIM      Set the message trim width.
+
+TIMEOUT
+  TIMEOUT may be a single value or two comma-separated values:
+
+      TIMEOUT
+      TIMEOUT_MID_STREAM,TIMEOUT_AFTER_EOF
+
+  A single value applies to both cases.
+
+  The first value controls how long intermittent messages remain while the
+  stream is still active. The second controls how long the final message
+  remains after the input stream reaches EOF.
+
+  Use -1 to keep the message indefinitely until it is explicitly erased
+  or overwritten.
+
+  TIMEOUT must be passed as a single argument. Do not include spaces around the
+  comma unless you quote the entire argument:
+
+      -t 8,2     # OK
+      -t "8, 2"  # OK
+      -t 8, 2    # Not OK
+
+  An empty field uses the default timeout:
+
+      -t ,0
+          Default timeout while the stream is active, instant timeout after EOF.
+
+      -t 3,
+          Timeout after 3 seconds while the stream is active, default timeout
+		  after EOF.
+
+
+  Examples:
+      -t 4
+          Keep the message(s) for 4 seconds.
+      -t -1
+          Keep the message(s) indefinitely.
+      -t 2,5
+          Keep the intermittent messages only for 2 seconds, but keep the final
+          one for 5 seconds.
+      -t -1,0
+          Keep intermittent messages indefinitely, but instantly timeout after
+		  the final one.
 
 RAW MODE
   By default, i3title trims messages to the configured max_width and sanitizes
@@ -201,24 +247,24 @@ RAW MODE
 
   Raw mode allows FORMAT to be included directly in the MESSAGE:
 
-    i3toast -R -m '<b>Hello</b>'
+      i3toast -R -m '<b>Hello</b>'
 
   Without -R, the markup is displayed literally; with -R, "Hello" is displayed
   in bold.
 
   Arbitrary data is (mostly) safe in normal mode because it is sanitized:
 
-    head -c 100 /dev/urandom | i3toast
+      head -c 100 /dev/urandom | i3toast
 
   But the same data passed through raw mode can immediately crash i3bar:
 
-    head -c 100 /dev/urandom | i3toast -R  # Don't do this
+      head -c 100 /dev/urandom | i3toast -R  # Don't do this
 
 EXAMPLES
-  i3toast -m "Hello!"
-  echo "Hello!" | i3toast
-  i3toast -i -m "Important message"
-  i3toast -t 5 -o 10 -m "Shown for 5 seconds, offseted by 10 spaces"
+      i3toast -m "Hello!"
+      echo "Hello!" | i3toast
+      i3toast -i -m "Important message"
+      i3toast -t 5 -o 10 -m "Shown for 5 seconds, offseted by 10 spaces"
 
 ```
 

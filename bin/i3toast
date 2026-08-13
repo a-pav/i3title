@@ -12,41 +12,85 @@ readonly QUEUE_PIDS="$RUN_DIR/queue.pids"
 
 usage() {
 	cat <<EOF
+
 NAME
-  i3toast - send messages to i3title
+      i3toast - send messages to i3title
 
 SYNOPSIS
-  i3toast [OPTIONS]
-  STDIN | i3toast [OPTIONS]
+      i3toast [OPTIONS]
+      STDIN | i3toast [OPTIONS]
 
 OPTIONS
-  -m MESSAGE    Display MESSAGE.
-  -f FORMAT     Format the message. The FORMAT should contain one %s.
-  -o OFFSET     Add OFFSET spaces before the message.
-  -T TRIM       Trim the message to TRIM characters.
-  -t TIMEOUT    Keep the message for TIMEOUT (default: 4 seconds).
-                Use -1 to keep it until explicitly erased or overwritten.
-  -i            Mark the message as important. Important messages are queued
-                and displayed one at a time. Transient (unimportant) messages
-                cannot interrupt them while they are running.
-  -R            Send the message in RAW MODE.
-  -w            Print the configured i3title maximum width.
-  -e            Erase the current message.
-  -E            Clear the queue and erase the current message.
-  -h            Print usage.
-  -v            Print version.
+      -m MESSAGE    Display MESSAGE.
+      -f FORMAT     Format the message. The FORMAT should contain one %s.
+      -o OFFSET     Add OFFSET spaces before the message.
+      -T TRIM       Trim the message to TRIM characters.
+      -t TIMEOUT    Keep the message for TIMEOUT (default: 4 seconds).
+      -i            Mark the message as important. Important messages are queued
+                    and displayed one at a time. Transient (unimportant) messages
+                    cannot interrupt them while they are running.
+      -R            Send the message in RAW MODE.
+      -w            Print the configured i3title maximum width.
+      -e            Erase the current message.
+      -E            Clear the queue and erase the current message.
+      -h            Print usage.
+      -v            Print version.
 
 
 STDIN
-  When input is provided on stdin, each line is treated as a separate MESSAGE.
+  When input is provided on stdin, each line is treated as a separate message.
 
-  You can tag the output like i3toast:<cmd>[:<payload>] to instruct
-  i3toast itself mid-stream:
+  You can tag the output like i3toast:<flag>[:<payload>] to adjust the
+  characteristics of the current stream:
 
-      i3toast:ers           Erase the current message.
-      i3toast:off:OFFSET    Set the message offset.
-      i3toast:fmt:FORMAT    Set the message format.
-      i3toast:trm:TRIM      Set the message trim width.
+      i3toast:-e           Erase the current message.
+      i3toast:-f:FORMAT    Set the message format.
+      i3toast:-o:OFFSET    Set the message offset.
+      i3toast:-T:TRIM      Set the message trim width.
+
+TIMEOUT
+  TIMEOUT may be a single value or two comma-separated values:
+
+      TIMEOUT
+      TIMEOUT_MID_STREAM,TIMEOUT_AFTER_EOF
+
+  A single value applies to both cases.
+
+  The first value controls how long intermittent messages remain while the
+  stream is still active. The second controls how long the final message
+  remains after the input stream reaches EOF.
+
+  Use -1 to keep the message indefinitely until it is explicitly erased
+  or overwritten.
+
+  TIMEOUT must be passed as a single argument. Do not include spaces around the
+  comma unless you quote the entire argument:
+
+      -t 8,2     # OK
+      -t "8, 2"  # OK
+      -t 8, 2    # Not OK
+
+  An empty field uses the default timeout:
+
+      -t ,0
+          Default timeout while the stream is active, instant timeout after EOF.
+
+      -t 3,
+          Timeout after 3 seconds while the stream is active, default timeout
+		  after EOF.
+
+
+  Examples:
+      -t 4
+          Keep the message(s) for 4 seconds.
+      -t -1
+          Keep the message(s) indefinitely.
+      -t 2,5
+          Keep the intermittent messages only for 2 seconds, but keep the final
+          one for 5 seconds.
+      -t -1,0
+          Keep intermittent messages indefinitely, but instantly timeout after
+		  the final one.
 
 RAW MODE
   By default, i3title trims messages to the configured max_width and sanitizes
@@ -56,24 +100,24 @@ RAW MODE
 
   Raw mode allows FORMAT to be included directly in the MESSAGE:
 
-    i3toast -R -m '<b>Hello</b>'
+      i3toast -R -m '<b>Hello</b>'
 
   Without -R, the markup is displayed literally; with -R, "Hello" is displayed
   in bold.
 
   Arbitrary data is (mostly) safe in normal mode because it is sanitized:
 
-    head -c 100 /dev/urandom | i3toast
+      head -c 100 /dev/urandom | i3toast
 
   But the same data passed through raw mode can immediately crash i3bar:
 
-    head -c 100 /dev/urandom | i3toast -R  # Don't do this
+      head -c 100 /dev/urandom | i3toast -R  # Don't do this
 
 EXAMPLES
-  i3toast -m "Hello!"
-  echo "Hello!" | i3toast
-  i3toast -i -m "Important message"
-  i3toast -t 5 -o 10 -m "Shown for 5 seconds, offseted by 10 spaces"
+      i3toast -m "Hello!"
+      echo "Hello!" | i3toast
+      i3toast -i -m "Important message"
+      i3toast -t 5 -o 10 -m "Shown for 5 seconds, offseted by 10 spaces"
 EOF
 }
 
@@ -113,16 +157,16 @@ parse_flags() {
 			shift
 			case "$1" in
 			*,*)
-				timeout="$(echo "$1" | cut -d',' -f1 | xargs)"
-				timeoutSTDIN="$(echo "$1" | cut -d',' -f2 | xargs)"
+				timeoutSTDIN="$(echo "$1" | cut -d',' -f1 | xargs)"
+				timeout="$(echo "$1" | cut -d',' -f2 | xargs)"
 				;;
 			*)
-				timeout="$1"
 				timeoutSTDIN="$1"
+				timeout="$1"
 				;;
 			esac
-			: "${timeout:=${DEFAULT_TIMEOUT}}"
 			: "${timeoutSTDIN:=${DEFAULT_TIMEOUT}}"
+			: "${timeout:=${DEFAULT_TIMEOUT}}"
 			;;
 		-f)
 			shift; set_format "$1" ;;
@@ -231,19 +275,19 @@ read_stdin() {
 		fi
 
 		case "$line" in
-		i3toast:ers )
+		i3toast:-e )
 			_erase_cancel
 			_erase
 			continue
 			;;
-		i3toast:off:* )
-			set_offset "${line#'i3toast:off:'}"
+		i3toast:-o:* )
+			set_offset "${line#'i3toast:-o:'}"
 			;;
-		i3toast:fmt:* )
-			set_format "${line#'i3toast:fmt:'}"
+		i3toast:-f:* )
+			set_format "${line#'i3toast:-f:'}"
 			;;
-		i3toast:trm:* )
-			set_trim "${line#'i3toast:trm:'}"
+		i3toast:-T:* )
+			set_trim "${line#'i3toast:-T:'}"
 			;;
 		* )
 			set_message "${line}"
