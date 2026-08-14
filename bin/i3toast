@@ -249,8 +249,8 @@ decide_process() {
 			# Queue self and proceed
 			queue_add $$
 		fi
-	elif queue_busy; then
-		# Transient messages are dropped when there's a queue
+	elif queue_busy && [ ! -p /dev/stdin ]; then
+		# One-shot messages are dropped when there's a queue
 		exit 0
 	#else
 	 	# Transient message + empty queue -> proceed
@@ -258,20 +258,22 @@ decide_process() {
 }
 
 read_stdin() {
-	local erase_pid
+	# These are specific to stdin's erase job
+	local _erase_pid
 	_erase() { printf '\n' >"$I3TITLE_PIPE"; }
-	_erase_cancel() { kill -s TERM "$erase_pid" >/dev/null 2>&1; }
+	_erase_cancel() { kill -s TERM "$_erase_pid" >/dev/null 2>&1; }
 	_erase_launch() {
 		if [ "$timeoutSTDIN" != '-1' ]; then
 			(sleep "$timeoutSTDIN"; _erase) &
-			erase_pid=$!
+			_erase_pid=$!
 		fi
 	}
 
 	while IFS= read -r line || [ -n "$line" ]; do
-		if queue_busy && [ "$(queue_top)" != $$ ]; then
+		if ! is_important && queue_busy; then
+			# Unimportant piped messages are dropped when there's a queue
 			_erase_cancel
-			continue # skip
+			continue
 		fi
 
 		case "$line" in
@@ -338,7 +340,7 @@ erase_cancel() {
 	fi
 }
 
-# Check whether the queue is busy
+# Check whether the queue is busy (an important message is running)
 queue_busy() {
 	test -s "$QUEUE_PIDS"
 }
@@ -366,11 +368,35 @@ queue_next() {
 	fi
 }
 
+# shellcheck disable=2120 # indirect argument is passed with trap statement
+cleanup() {
+	local exit_code=$?
+
+	local signaled="${1:-0}"
+
+	if [ "$signaled" -eq 1 ]; then
+		if [ -n "$_erase_pid" ]; then
+			_erase_cancel
+		fi
+		erase_cancel
+		erase
+	fi
+
+	if is_important; then
+		queue_pop $$
+		queue_next
+	fi
+
+	exit "$exit_code"
+}
+
 main() {
 	setup_env
 	parse_flags "$@"
 
 	decide_process
+
+	trap 'cleanup 1' INT TERM HUP
 
 	erase_cancel
 	if [ -p /dev/stdin ]; then
@@ -380,10 +406,7 @@ main() {
 	fi
 	erase_launch
 
-	if is_important; then
-		queue_pop $$
-		queue_next
-	fi
+	cleanup
 }
 
 main "$@"
