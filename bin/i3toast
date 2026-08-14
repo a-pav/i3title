@@ -141,8 +141,8 @@ setup_env() {
 parse_flags() {
 	important=0
 	rawMode=0
-	timeout=${DEFAULT_TIMEOUT}        # default
-	timeoutSTDIN=${DEFAULT_TIMEOUT}   # default
+	timeoutSTDIN=${DEFAULT_TIMEOUT}
+	timeoutEOF=${DEFAULT_TIMEOUT}
 
 	set_message ""
 	set_format ""
@@ -158,15 +158,15 @@ parse_flags() {
 			case "$1" in
 			*,*)
 				timeoutSTDIN="$(echo "$1" | cut -d',' -f1 | xargs)"
-				timeout="$(echo "$1" | cut -d',' -f2 | xargs)"
+				timeoutEOF="$(echo "$1" | cut -d',' -f2 | xargs)"
 				;;
 			*)
 				timeoutSTDIN="$1"
-				timeout="$1"
+				timeoutEOF="$1"
 				;;
 			esac
 			: "${timeoutSTDIN:=${DEFAULT_TIMEOUT}}"
-			: "${timeout:=${DEFAULT_TIMEOUT}}"
+			: "${timeoutEOF:=${DEFAULT_TIMEOUT}}"
 			;;
 		-f)
 			shift; set_format "$1" ;;
@@ -258,28 +258,16 @@ decide_process() {
 }
 
 read_stdin() {
-	# These are specific to stdin's erase job
-	local _erase_pid
-	_erase() { printf '\n' >"$I3TITLE_PIPE"; }
-	_erase_cancel() { kill -s TERM "$_erase_pid" >/dev/null 2>&1; }
-	_erase_launch() {
-		if [ "$timeoutSTDIN" != '-1' ]; then
-			(sleep "$timeoutSTDIN"; _erase) &
-			_erase_pid=$!
-		fi
-	}
-
 	while IFS= read -r line || [ -n "$line" ]; do
 		if ! is_important && queue_busy; then
 			# Unimportant piped messages are dropped when there's a queue
-			_erase_cancel
 			continue
 		fi
 
 		case "$line" in
 		i3toast:-e )
-			_erase_cancel
-			_erase
+			erase_cancel
+			erase
 			continue
 			;;
 		i3toast:-o:* )
@@ -296,15 +284,16 @@ read_stdin() {
 			;;
 		esac
 
-		_erase_cancel
-
+		erase_cancel
 		send
-
-		_erase_launch
+		erase_launch "$timeoutSTDIN"
 
 	done </dev/stdin
 
-	_erase_cancel
+	if [ "$timeoutSTDIN" != "$timeoutEOF" ]; then
+		erase_cancel
+		erase_launch "$timeoutEOF"
+	fi
 }
 
 send() {
@@ -324,19 +313,19 @@ erase() {
 
 # Launch the erase job
 erase_launch() {
-	if [ "$timeout" != '-1' ]; then
-		( sleep "$timeout"; erase ) &
+	local delay="$1"
+	if [ "$delay" != '-1' ]; then
+		( sleep "$delay"; erase ) &
 		echo $! >"$ERASE_PID"
-		wait $!
 	fi
 }
 
 # Cancel the pending erase job
 erase_cancel() {
 	if [ -f "$ERASE_PID" ]; then
-		local pid; pid="$(cat "$ERASE_PID")"
-		rm "$ERASE_PID"
-		kill -s TERM "$pid"
+		local pid; pid="$(cat "$ERASE_PID" 2>/dev/null)"
+		rm "$ERASE_PID" >/dev/null 2>&1
+		kill -s TERM "$pid" >/dev/null 2>&1
 	fi
 }
 
@@ -375,9 +364,6 @@ cleanup() {
 	local signaled="${1:-0}"
 
 	if [ "$signaled" -eq 1 ]; then
-		if [ -n "$_erase_pid" ]; then
-			_erase_cancel
-		fi
 		erase_cancel
 		erase
 	fi
@@ -398,13 +384,15 @@ main() {
 
 	trap 'cleanup 1' INT TERM HUP
 
-	erase_cancel
 	if [ -p /dev/stdin ]; then
 		read_stdin
 	else
-		send # One-shot message
+		# One-shot message
+		erase_cancel
+		send
+		erase_launch "$timeoutEOF"
 	fi
-	erase_launch
+	wait $! # Wait for the pending erase
 
 	cleanup
 }
