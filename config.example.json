@@ -26,9 +26,15 @@
     // format and inherits its attributes unless explicitly overridden.
     "format": "<span foreground='#a6f3fd' font='fira code medium 11'>%s</span>",
 
-    // Format for the i3 mode. The default is "", which disables the feature.
-    // To enable it, a format containing "%s" is required. For example, "%s | "
-    // displays the mode alongside the title as "[ mode ] | [ title ]".
+    // Format for the current i3 mode.
+    //
+    // The default is a simple format that shows the mode name in italic.
+    // The format must contain one "%s" to display the mode name.
+    // For example "%s | " displays the mode alongside the title as:
+    //
+    //      <mode> | <title>
+    //
+    // Set it to empty string ("") to disable the feature.
     // As with "format", you can also use Pango markup for styling and formatting.
     "mode_format": "<span fgcolor='black' bgcolor='white' font='italic bold'> %s </span> <span color='#666666'>|</span> ",
 
@@ -55,7 +61,8 @@
     "separator": false,
 
     // Path to the named pipe used by i3toast to communicate with i3title.
-    // The default is "", which disables the feature.
+    // The default is "/tmp/i3title.pipe".
+    // Set it to empty string ("") to disables the feature.
     "pipe": "/tmp/i3title.pipe",
 
     // i3title uses a fixed-size buffer. To calculate a tight buffer size in bytes

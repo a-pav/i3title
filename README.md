@@ -25,10 +25,10 @@ https://github.com/user-attachments/assets/7846a025-db57-4143-86a4-0313c08b74e7
 
 
 ## Features
- - **Zero Configuration Defaults** – Shows the active window title out of the box.
+ - **Zero-Configuration Defaults** – Shows the active window title and i3 mode out of the box.
  - **Fully Customizable** – Accepts arbitrary text via standard input or command-line arguments, letting you display system metrics, weather, API results, custom scripts output, or anything else.
- - **Background Workspace Awareness** – Reports on work being done on other workspaces, keeping you informed of background activity without needing to switch views.
  - **Real-time Updates** – Instantly refreshes on workspace switches, window focus changes, background workspace activity, i3 mode toggles, and new piped data.
+ - **Background Workspace Awareness** – Reports on work being done on other workspaces, keeping you informed of background activity without needing to switch views.
  - **i3bar Native** – Designed specifically for i3bar, respecting your existing configurations.
  - **Lightweight & Fast** – Written in Go, with a **minimal footprint**.
 

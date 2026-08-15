@@ -67,6 +67,8 @@ func newConfig() *Config {
 		Separator:   "false",
 		MinWidth:    "400",
 		Format:      "%s",
+		ModeFormat:  "<i>%s</i> | ",
+		Pipe:        "/tmp/i3title.pipe",
 		formatIndex: 0,
 	}
 }
