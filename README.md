@@ -19,10 +19,9 @@ format it on the fly, and trigger instant updates—all without touching your co
 
 ## Demo
 
-
-
 https://github.com/user-attachments/assets/7846a025-db57-4143-86a4-0313c08b74e7
 
+<sub><strong>Note:</strong> The demo video is best viewed on a desktop in fullscreen.</sub>
 
 ## Features
  - **Zero-Configuration Defaults** – Shows the active window title and i3 mode out of the box.
