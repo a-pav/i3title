@@ -20,7 +20,7 @@ type Config struct {
 
 func (c *Config) WriteReport(report *bbuf.Buffer, title, mode string) {
 	mw := 0 // mode visible width.
-	if c.ModeFormat != "" && mode != "default" {
+	if mode != "default" && c.ModeFormat != "" {
 		mw = len([]rune(mode)) + c.modeFormatWidth
 
 		report.WriteString(c.ModeFormat[:c.modeFormatIndex])

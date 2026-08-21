@@ -7,7 +7,6 @@ readonly VERSION="@VERSION@"
 readonly DEFAULT_TIMEOUT=4
 
 readonly RUN_DIR='/dev/shm/i3toast'
-readonly ERASE_PID="$RUN_DIR/erase.pid"
 readonly QUEUE_PIDS="$RUN_DIR/queue.pids"
 
 usage() {
@@ -85,9 +84,9 @@ TIMEOUT
           Keep the message(s) for 4 seconds.
       -t -1
           Keep the message(s) indefinitely.
-      -t 2,5
+      -t 2,30
           Keep the intermittent messages only for 2 seconds, but keep the final
-          one for 5 seconds.
+          one for 30 seconds.
       -t -1,0
           Keep intermittent messages indefinitely, but instantly timeout after
 		  the final one.
@@ -235,7 +234,7 @@ set_offset() {
 }
 
 set_trim() {
-	trim="$1"
+	trim_width="$1"
 }
 
 # Decide how to proceed execution
@@ -266,7 +265,6 @@ read_stdin() {
 
 		case "$line" in
 		i3toast:-e )
-			erase_cancel
 			erase
 			continue
 			;;
@@ -284,50 +282,30 @@ read_stdin() {
 			;;
 		esac
 
-		erase_cancel
-		send
-		erase_launch "$timeoutSTDIN"
+		send "$timeoutSTDIN"
 
 	done </dev/stdin
 
 	if [ "$timeoutSTDIN" != "$timeoutEOF" ]; then
-		erase_cancel
-		erase_launch "$timeoutEOF"
+		send "$timeoutEOF"
 	fi
 }
 
 send() {
-	printf '%s\036%s\036%s\036%s\036%s\036%s\n' \
+	local timeout="$1"
+
+	printf '%s\036%s\036%s\036%s\036%s\036%s\036%s\036%s\n' \
 		"${offset}${format_left}" \
 		"${format_right}" \
-		"$((format_width+offset_width))" \
-		"${trim}" \
+		"${format_width}" \
+		"${offset_width}" \
+		"${trim_width}" \
 		"${rawMode}" \
+		"${timeout}" \
 		"${message}" >"$I3TITLE_PIPE"
 }
 
-erase() {
-	rm "$ERASE_PID" >/dev/null 2>&1
-	printf '\n' >"$I3TITLE_PIPE"
-}
-
-# Launch the erase job
-erase_launch() {
-	local delay="$1"
-	if [ "$delay" != '-1' ]; then
-		( sleep "$delay"; erase ) &
-		echo $! >"$ERASE_PID"
-	fi
-}
-
-# Cancel the pending erase job
-erase_cancel() {
-	if [ -f "$ERASE_PID" ]; then
-		local pid; pid="$(cat "$ERASE_PID" 2>/dev/null)"
-		rm "$ERASE_PID" >/dev/null 2>&1
-		kill -s TERM "$pid" >/dev/null 2>&1
-	fi
-}
+erase() { printf '\n' >"$I3TITLE_PIPE"; }
 
 # Check whether the queue is busy (an important message is running)
 queue_busy() {
@@ -364,11 +342,15 @@ cleanup() {
 	local signaled="${1:-0}"
 
 	if [ "$signaled" -eq 1 ]; then
-		erase_cancel
 		erase
 	fi
 
 	if is_important; then
+		if [ "$signaled" -eq 0 ] && [ "$timeoutEOF" != '-1' ]; then
+		# Important messages must define a timeout, they can not remain in the
+		# queue and therefore halt other messages indefinitely.
+			sleep "$timeoutEOF"
+		fi
 		queue_pop $$
 		queue_next
 	fi
@@ -388,11 +370,8 @@ main() {
 		read_stdin
 	else
 		# One-shot message
-		erase_cancel
-		send
-		erase_launch "$timeoutEOF"
+		send "$timeoutEOF"
 	fi
-	wait $! # Wait for the pending erase
 
 	cleanup
 }

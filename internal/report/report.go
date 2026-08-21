@@ -3,6 +3,7 @@ package report
 import (
 	"bytes"
 	"os"
+	"time"
 
 	"github.com/a-pav/i3title/internal/bbuf"
 	"github.com/a-pav/i3title/internal/config"
@@ -50,7 +51,7 @@ func reporter(cfg *config.Config,
 	titleCh, modeCh <-chan string,
 ) {
 	var (
-		report  = bbuf.New(cfg.MaxWidth * 5) // Outgoing report (Big enough buffer, even for all-Chinese characters.)
+		report  = bbuf.New(cfg.MaxWidth * 5) // Outgoing report (Big enough buffer, even for all-Unicode characters.)
 		mode    = "default"                  // Current i3 mode.
 		title   string                       // Current window title.
 		message []byte                       // Piped in message.
@@ -61,6 +62,8 @@ func reporter(cfg *config.Config,
 		ARS = []byte{'\036'} // ASCII Record Separator
 		LF  = []byte{'\n'}
 	)
+	timer := time.NewTimer(0) // message timer
+	timer.Stop()              // Considering Go 1.23 guarantees
 
 	doPrint := func() {
 		c := 0
@@ -79,26 +82,38 @@ func reporter(cfg *config.Config,
 	}
 	newMessage := func() {
 		report.Reset()
+		duration := 4 * time.Second // default timeout
 
-		const nParts = 6 // number of parts
+		const nParts = 8 // number of parts
 		if parts := bytes.SplitN(message, ARS, nParts); len(parts) == nParts {
 			var (
 				formatLeft  = parts[0]
 				formatRight = parts[1]
 				formatWidth = atoi(parts[2])
-				trim        = atoi(parts[3])
-				rawMode     = atoi(parts[4])
-				msg         = parts[5]
+				offsetWidth = atoi(parts[3])
+				trimWidth   = atoi(parts[4])
+				rawMode     = atoi(parts[5])
+				timeout     = atoi(parts[6])
+				msg         = parts[7]
 			)
+			duration = time.Duration(timeout) * time.Second
+
 			report.Write(formatLeft)
 			if rawMode == 1 {
 				report.Write(msg)
 			} else {
-				report.WriteText(msg, min(trim, cfg.MaxWidth-formatWidth))
+				formatWidth += offsetWidth
+				report.WriteText(msg, min(trimWidth, cfg.MaxWidth-formatWidth))
 			}
 			report.Write(formatRight)
 		} else {
 			report.WriteString("<span font='bold' fgcolor='#ff2b2b'>400 Bad Request</span>")
+		}
+
+		if duration == -1 {
+			timer.Stop()
+		} else {
+			timer.Reset(duration)
 		}
 
 		doPrint()
@@ -141,27 +156,51 @@ func reporter(cfg *config.Config,
 				messageCh = nil // disable
 				continue
 			}
-			if len(message) == 0 { // clearing message?
+			if len(message) == 0 { // erasing message?
+				timer.Stop()
 				newReport()
 			} else {
 				newMessage()
 			}
 			messageDone <- struct{}{}
+		case <-timer.C:
+			message = message[:0] // erase
+			newReport()
 		}
 	}
 }
 
 func atoi(b []byte) int {
-	switch len(b) {
-	case 1:
-		return int(b[0] - '0')
-	case 2:
-		return int(b[0]-'0')*10 + int(b[1]-'0')
-	case 3:
-		return int(b[0]-'0')*100 + int(b[1]-'0')*10 + int(b[2]-'0')
-	default:
+	if len(b) == 0 {
 		return -1
 	}
+
+	neg := b[0] == '-'
+	if neg {
+		b = b[1:]
+		if len(b) == 0 {
+			return -1 // Handle a bare "-"
+		}
+	}
+
+	var n int
+	switch len(b) {
+	case 1:
+		n = int(b[0] - '0')
+	case 2:
+		n = int(b[0]-'0')*10 + int(b[1]-'0')
+	case 3:
+		n = int(b[0]-'0')*100 + int(b[1]-'0')*10 + int(b[2]-'0')
+	default: // Fallback for > 3 digits
+		for _, ch := range b {
+			n = n*10 + int(ch-'0')
+		}
+	}
+
+	if neg {
+		return -n
+	}
+	return n
 }
 
 // Read-only `[]byte(string)` convertions are optimized by compiler:
