@@ -55,22 +55,20 @@ func reporter(cfg *config.Config,
 		mode    = "default"                  // Current i3 mode.
 		title   string                       // Current window title.
 		message []byte                       // Piped in message.
+		timer   = time.NewTimer(0)           // Timer for message.
 
 		line0 []byte                      // Incoming line from `i3status` stdout.
 		line1 = make([]byte, cfg.BufSize) // Outgoing line with report in it.
 
 		ARS = []byte{'\036'} // ASCII Record Separator
-		LF  = []byte{'\n'}
 	)
-	timer := time.NewTimer(0) // message timer
-	timer.Stop()              // Considering Go 1.23 guarantees
 
 	doPrint := func() {
 		c := 0
 		c += copy(line1[c:], line0[:2]) // 2 == len(",[")
 		c += cfg.Print(line1[c:], report.Bytes())
 		c += copy(line1[c:], line0[2:])
-		c += copy(line1[c:], LF)
+		c += copy(line1[c:], "\n")
 
 		os.Stdout.Write(line1[:c])
 	}
@@ -80,12 +78,13 @@ func reporter(cfg *config.Config,
 
 		doPrint()
 	}
-	newMessage := func() {
+	newMessage := func() time.Duration {
 		report.Reset()
 		duration := 4 * time.Second // default timeout
 
 		const nParts = 8 // number of parts
-		if parts := bytes.SplitN(message, ARS, nParts); len(parts) == nParts {
+		var parts [nParts][]byte
+		if n := splitN(parts[:], message, ARS); n == nParts {
 			var (
 				formatLeft  = parts[0]
 				formatRight = parts[1]
@@ -110,13 +109,9 @@ func reporter(cfg *config.Config,
 			report.WriteString("<span font='bold' fgcolor='#ff2b2b'>400 Bad Request</span>")
 		}
 
-		if duration == -1 {
-			timer.Stop()
-		} else {
-			timer.Reset(duration)
-		}
-
 		doPrint()
+
+		return duration
 	}
 
 	// The first two lines are i3bar protocol handshake and the third line is the
@@ -126,13 +121,14 @@ func reporter(cfg *config.Config,
 
 		c := 0
 		c += copy(line1[c:], line0)
-		c += copy(line1[c:], LF)
+		c += copy(line1[c:], "\n")
 
 		os.Stdout.Write(line1[:c])
 
 		lineDone <- struct{}{}
 	}
 
+	timer.Stop()
 	for { // main loop
 		var ok bool
 		select {
@@ -160,7 +156,12 @@ func reporter(cfg *config.Config,
 				timer.Stop()
 				newReport()
 			} else {
-				newMessage()
+				d := newMessage()
+				if d < 0 {
+					timer.Stop()
+				} else {
+					timer.Reset(d)
+				}
 			}
 			messageDone <- struct{}{}
 		case <-timer.C:
@@ -168,6 +169,22 @@ func reporter(cfg *config.Config,
 			newReport()
 		}
 	}
+}
+
+// splitN is an allocation-free version of [bytes.SplitN] that writes into dst.
+func splitN(dst [][]byte, s, sep []byte) int {
+	for i := range dst {
+		m := bytes.Index(s, sep)
+		if m < 0 {
+			dst[i] = s
+			return i + 1
+		}
+
+		dst[i] = s[:m:m]
+		s = s[m+len(sep):]
+	}
+
+	return len(dst)
 }
 
 func atoi(b []byte) int {
