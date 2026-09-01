@@ -60,7 +60,8 @@ func reporter(cfg *config.Config,
 		line0 []byte                      // Incoming line from `i3status` stdout.
 		line1 = make([]byte, cfg.BufSize) // Outgoing line with report in it.
 
-		ARS = []byte{'\036'} // ASCII Record Separator
+		offset = bytes.Repeat([]byte{' '}, cfg.MaxWidth) // Offset spaces.
+		ARS    = []byte{'\036'}                          // ASCII Record Separator
 	)
 
 	doPrint := func() {
@@ -78,31 +79,28 @@ func reporter(cfg *config.Config,
 
 		doPrint()
 	}
-	newMessage := func() time.Duration {
+	newMessage := func(msg []byte) {
 		report.Reset()
-		duration := 4 * time.Second // default timeout
 
-		const nParts = 8 // number of parts
+		const nParts = 7 // number of parts
 		var parts [nParts][]byte
-		if n := splitN(parts[:], message, ARS); n == nParts {
+		if n := splitN(parts[:], msg, ARS[0]); n == nParts {
 			var (
-				formatLeft  = parts[0]
-				formatRight = parts[1]
-				formatWidth = atoi(parts[2])
-				offsetWidth = atoi(parts[3])
+				offsetWidth = max(0, min(cfg.MaxWidth, atoi(parts[0])))
+				formatLeft  = parts[1]
+				formatRight = parts[2]
+				formatWidth = atoi(parts[3])
 				trimWidth   = atoi(parts[4])
 				rawMode     = atoi(parts[5])
-				timeout     = atoi(parts[6])
-				msg         = parts[7]
+				text        = parts[6]
 			)
-			duration = time.Duration(timeout) * time.Second
-
+			report.Write(offset[:offsetWidth])
 			report.Write(formatLeft)
 			if rawMode == 1 {
-				report.Write(msg)
+				report.Write(text)
 			} else {
 				formatWidth += offsetWidth
-				report.WriteText(msg, min(trimWidth, cfg.MaxWidth-formatWidth))
+				report.WriteText(text, min(cfg.MaxWidth-formatWidth, trimWidth))
 			}
 			report.Write(formatRight)
 		} else {
@@ -110,8 +108,6 @@ func reporter(cfg *config.Config,
 		}
 
 		doPrint()
-
-		return duration
 	}
 
 	// The first two lines are i3bar protocol handshake and the third line is the
@@ -152,51 +148,57 @@ func reporter(cfg *config.Config,
 				messageCh = nil // disable
 				continue
 			}
-			if len(message) == 0 { // erasing message?
+			var parts [2][]byte
+			splitN(parts[:], message, ARS[0])
+			timeout, msg := atoi(parts[0]), parts[1]
+			switch {
+			case timeout > 0: // Common path
+				newMessage(msg)
+				timer.Reset(time.Duration(timeout) * time.Second)
+			case timeout == -1:
+				newMessage(msg)
+				timer.Stop()
+			case timeout == 0:
+				message = message[:0] // Erase message
 				timer.Stop()
 				newReport()
-			} else {
-				d := newMessage()
-				if d < 0 {
-					timer.Stop()
-				} else {
-					timer.Reset(d)
-				}
 			}
 			messageDone <- struct{}{}
 		case <-timer.C:
-			message = message[:0] // erase
+			message = message[:0] // Erase message
 			newReport()
 		}
 	}
 }
 
-// splitN is an allocation-free version of [bytes.SplitN] that writes into dst.
-func splitN(dst [][]byte, s, sep []byte) int {
-	for i := range dst {
-		m := bytes.Index(s, sep)
-		if m < 0 {
-			dst[i] = s
-			return i + 1
+// splitN is an allocation-free version of [bytes.SplitN] that writes into parts.
+func splitN(parts [][]byte, s []byte, sep byte) int {
+	for p := range parts {
+		i := bytes.IndexByte(s, sep)
+		if i < 0 {
+			parts[p] = s
+			return p + 1
 		}
 
-		dst[i] = s[:m:m]
-		s = s[m+len(sep):]
+		parts[p] = s[:i:i]
+		s = s[i+1:]
 	}
 
-	return len(dst)
+	return len(parts)
 }
 
 func atoi(b []byte) int {
+	interror := -128
+
 	if len(b) == 0 {
-		return -1
+		return interror
 	}
 
 	neg := b[0] == '-'
 	if neg {
 		b = b[1:]
 		if len(b) == 0 {
-			return -1 // Handle a bare "-"
+			return interror // Handle a bare "-"
 		}
 	}
 

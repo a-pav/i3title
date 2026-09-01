@@ -131,6 +131,8 @@ setup_env() {
 	: "${I3TITLE_PIPE:?}"
 	: "${I3TITLE_MAX_WIDTH:?}"
 
+	exec 3>"${I3TITLE_PIPE}" # Open the pipe once
+
 	if [ ! -d "$RUN_DIR" ]; then
 		mkdir -p "$RUN_DIR"
 		touch "$QUEUE_PIDS"
@@ -226,11 +228,6 @@ set_format() {
 
 set_offset() {
 	offset_width="$1"
-	if [ "$offset_width" -eq 0 ]; then
-		offset=""
-	else
-		offset="$(printf '%*s' "$offset_width" '')"
-	fi
 }
 
 set_trim() {
@@ -258,7 +255,7 @@ decide_process() {
 
 read_stdin() {
 	while IFS= read -r line || [ -n "$line" ]; do
-		if ! is_important && queue_busy; then
+		if queue_busy && ! is_important; then
 			# Unimportant piped messages are dropped when there's a queue
 			continue
 		fi
@@ -295,17 +292,17 @@ send() {
 	local timeout="$1"
 
 	printf '%s\036%s\036%s\036%s\036%s\036%s\036%s\036%s\n' \
-		"${offset}${format_left}" \
+		"${timeout}" \
+		"${offset_width}" \
+		"${format_left}" \
 		"${format_right}" \
 		"${format_width}" \
-		"${offset_width}" \
 		"${trim_width}" \
 		"${rawMode}" \
-		"${timeout}" \
-		"${message}" >"$I3TITLE_PIPE"
+		"${message}" >&3
 }
 
-erase() { printf '\n' >"$I3TITLE_PIPE"; }
+erase() { send 0; }
 
 # Check whether the queue is busy (an important message is running)
 queue_busy() {
@@ -338,7 +335,6 @@ queue_next() {
 # shellcheck disable=2120 # indirect argument is passed with trap statement
 cleanup() {
 	local exit_code=$?
-
 	local signaled="${1:-0}"
 
 	if [ "$signaled" -eq 1 ]; then
@@ -347,8 +343,8 @@ cleanup() {
 
 	if is_important; then
 		if [ "$signaled" -eq 0 ] && [ "$timeoutEOF" != '-1' ]; then
-		# Important messages must define a timeout, they can not remain in the
-		# queue and therefore halt other messages indefinitely.
+		# Important messages should define a timeout, otherwise they'll remain
+		# in the queue and therefore halt or drop other messages.
 			sleep "$timeoutEOF"
 		fi
 		queue_pop $$
@@ -369,8 +365,7 @@ main() {
 	if [ -p /dev/stdin ]; then
 		read_stdin
 	else
-		# One-shot message
-		send "$timeoutEOF"
+		send "$timeoutEOF" # One-shot message
 	fi
 
 	cleanup

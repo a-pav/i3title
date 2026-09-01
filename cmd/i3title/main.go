@@ -9,11 +9,11 @@ import (
 	"github.com/a-pav/i3title/internal/report"
 )
 
-var Version string
+var Version = "dev"
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "-v" {
-		fmt.Println("i3title ", Version)
+		fmt.Println("i3title", Version)
 		return
 	}
 

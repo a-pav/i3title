@@ -48,7 +48,7 @@ func (b *Buffer) Bytes() []byte { return b.buf[:b.end] }
 func (b *Buffer) Reset() { b.end = 0 }
 
 func (b *Buffer) WriteText(p []byte, width int) (int, error) {
-	width = max(width, 0) // clamp width at 0
+	width = max(0, width) // clamp width at 0
 	if width == 0 {
 		return b.markTruncated()
 	}
@@ -86,7 +86,7 @@ func (b *Buffer) WriteText(p []byte, width int) (int, error) {
 }
 
 func (b *Buffer) WriteTextString(s string, width int) (int, error) {
-	width = max(width, 0) // clamp width at 0
+	width = max(0, width) // clamp width at 0
 	if width == 0 {
 		return b.markTruncated()
 	}
