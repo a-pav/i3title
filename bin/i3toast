@@ -129,6 +129,8 @@ setup_env() {
 	fi
 
 	: "${I3TITLE_PIPE:?}"
+	: "${I3TITLE_ALIGN:?}"
+	: "${I3TITLE_MIN_WIDTH:?}"
 	: "${I3TITLE_MAX_WIDTH:?}"
 
 	exec 3>"${I3TITLE_PIPE}" # Open the pipe once
@@ -142,11 +144,15 @@ setup_env() {
 parse_flags() {
 	important=0
 	rawMode=0
+
+	# Set some fields directly to avoid their parsing process
+	align="$I3TITLE_ALIGN"
 	timeoutSTDIN=${DEFAULT_TIMEOUT}
 	timeoutEOF=${DEFAULT_TIMEOUT}
 
 	set_message ""
 	set_format ""
+	set_min_width "$I3TITLE_MIN_WIDTH"
 	set_offset 0
 	set_trim "$I3TITLE_MAX_WIDTH"
 
@@ -155,24 +161,13 @@ parse_flags() {
 		-m)
 			shift; set_message "$1" ;;
 		-t)
-			shift
-			case "$1" in
-			*,*)
-				timeoutSTDIN="$(echo "$1" | cut -d',' -f1 | xargs)"
-				timeoutEOF="$(echo "$1" | cut -d',' -f2 | xargs)"
-				;;
-			*)
-				timeoutSTDIN="$1"
-				timeoutEOF="$1"
-				;;
-			esac
-			: "${timeoutSTDIN:=${DEFAULT_TIMEOUT}}"
-			: "${timeoutEOF:=${DEFAULT_TIMEOUT}}"
-			;;
+			shift; set_timeout "$1" ;;
 		-f)
 			shift; set_format "$1" ;;
 		-o)
 			shift; set_offset "$1" ;;
+		-a)
+			shift; set_align "$1" ;;
 		-i)
 			important=1 ;;
 		-w)
@@ -181,6 +176,8 @@ parse_flags() {
 			erase; exit 0 ;;
 		-E)
 			:>"$QUEUE_PIDS"; erase; exit 0 ;;
+		-M)
+			shift; set_min_width "$1" ;;
 		-T)
 			shift; set_trim "$1" ;;
 		-R)
@@ -204,6 +201,21 @@ is_important() {
 	test "$important" -eq 1
 }
 
+set_timeout() {
+	case "$1" in
+	*,*)
+		timeoutSTDIN="$(echo "${1%,*}" | xargs)"
+		timeoutEOF="$(echo "${1#*,}" | xargs)"
+		;;
+	*)
+		timeoutSTDIN="$1"
+		timeoutEOF="$1"
+		;;
+	esac
+	: "${timeoutSTDIN:=${DEFAULT_TIMEOUT}}"
+	: "${timeoutEOF:=${DEFAULT_TIMEOUT}}"
+}
+
 set_message() {
 	message="$1"
 }
@@ -224,6 +236,18 @@ set_format() {
 			format_width="$((wid-2))" # len("%s") == 2
 		fi
 	fi
+}
+
+set_align() {
+	case "$1" in
+	l* ) align=0 ;; # left
+	c* ) align=1 ;; # center
+	r* ) align=2 ;; # right
+	esac
+}
+
+set_min_width() {
+	min_width="$1"
 }
 
 set_offset() {
@@ -271,8 +295,14 @@ read_stdin() {
 		i3toast:-f:* )
 			set_format "${line#'i3toast:-f:'}"
 			;;
+		i3toast:-M:* )
+			set_min_width "${line#'i3toast:-M:'}"
+			;;
 		i3toast:-T:* )
 			set_trim "${line#'i3toast:-T:'}"
+			;;
+		i3toast:-a:* )
+			set_align "${line#'i3toast:-a:'}"
 			;;
 		* )
 			set_message "${line}"
@@ -291,8 +321,10 @@ read_stdin() {
 send() {
 	local timeout="$1"
 
-	printf '%s\036%s\036%s\036%s\036%s\036%s\036%s\036%s\n' \
+	printf '%s\036%s\036%s\036%s\036%s\036%s\036%s\036%s\036%s\036%s\n' \
 		"${timeout}" \
+		"${align}" \
+		"${min_width}" \
 		"${offset_width}" \
 		"${format_left}" \
 		"${format_right}" \

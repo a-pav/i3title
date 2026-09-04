@@ -74,26 +74,29 @@ func reporter(cfg *config.Config,
 		os.Stdout.Write(line1[:c])
 	}
 	newReport := func() {
-		report.Reset()
-		cfg.WriteReport(report, title, mode)
-
+		cfg.Report(report, title, mode)
 		doPrint()
 	}
 	newMessage := func(msg []byte) {
 		report.Reset()
 
-		const nParts = 7 // number of parts
+		const nParts = 9 // number of parts
 		var parts [nParts][]byte
 		if n := splitN(parts[:], msg, ARS[0]); n == nParts {
 			var (
-				offsetWidth = max(0, min(cfg.MaxWidth, atoi(parts[0])))
-				formatLeft  = parts[1]
-				formatRight = parts[2]
-				formatWidth = atoi(parts[3])
-				trimWidth   = atoi(parts[4])
-				rawMode     = atoi(parts[5])
-				text        = parts[6]
+				align       = parts[0]
+				minWidth    = parts[1]
+				offsetWidth = max(0, min(cfg.MaxWidth, atoi(parts[2])))
+				formatLeft  = parts[3]
+				formatRight = parts[4]
+				formatWidth = atoi(parts[5])
+				trimWidth   = atoi(parts[6])
+				rawMode     = atoi(parts[7])
+				text        = parts[8]
 			)
+			cfg.SetAlign(align)
+			cfg.SetMinWidth(minWidth)
+
 			report.Write(offset[:offsetWidth])
 			report.Write(formatLeft)
 			if rawMode == 1 {
