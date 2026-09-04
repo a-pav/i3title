@@ -172,19 +172,27 @@ func reporter(cfg *config.Config,
 }
 
 // splitN is an allocation-free version of [bytes.SplitN] that writes into parts.
+// N is implied by the len(parts). The last part will be the unsplit remainder.
 func splitN(parts [][]byte, s []byte, sep byte) int {
-	for p := range parts {
+	if len(parts) == 0 {
+		return 0
+	}
+
+	p := 0
+	for p < len(parts)-1 {
 		i := bytes.IndexByte(s, sep)
 		if i < 0 {
-			parts[p] = s
-			return p + 1
+			break // No more separators, dump the remainder
 		}
 
 		parts[p] = s[:i:i]
 		s = s[i+1:]
+		p++
 	}
+	// Last part holds the remainder of 's'
+	parts[p] = s
 
-	return len(parts)
+	return p + 1
 }
 
 func atoi(b []byte) int {
