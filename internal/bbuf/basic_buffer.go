@@ -2,9 +2,9 @@
 package bbuf
 
 import (
-	"io"
 	"unicode"
 	"unicode/utf8"
+	"unsafe"
 )
 
 const ellipsis = "…"
@@ -17,8 +17,8 @@ type Buffer struct {
 }
 
 var (
-	_ io.Writer       = (*Buffer)(nil)
-	_ io.StringWriter = (*Buffer)(nil)
+// _ io.Writer       = (*Buffer)(nil)
+// _ io.StringWriter = (*Buffer)(nil)
 )
 
 // New returns a basic buffer with a fixed size of n.
@@ -175,4 +175,22 @@ func safeRune(r rune) (repl string, ok bool) {
 	default:
 		return "", false // Strip
 	}
+}
+
+// Read-only `[]byte(string)` convertions are optimized by compiler:
+// https://github.com/golang/go/issues/2205 (commits=c8adb30,925d2fb,d63c88d).
+
+// AsBytes converts a string to a []byte without allocating new memory.
+//
+// Modifying the returned slice's backing array will cause panic.
+func AsBytes(s string) []byte {
+	return unsafe.Slice(unsafe.StringData(s), len(s))
+}
+
+// AsString converts a []byte to a string without allocating new memory.
+//
+// Modifying b's backing array is reflected by the returned string,
+// making its use subtler than [AsBytes] in this regard.
+func AsString(b []byte) string {
+	return unsafe.String(unsafe.SliceData(b), len(b))
 }

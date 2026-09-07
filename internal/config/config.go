@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"unicode/utf8"
 
 	"github.com/a-pav/i3title/internal/bbuf"
 )
@@ -25,19 +26,19 @@ type Config struct {
 }
 
 // Report prepares a new report consisting of title and mode.
-func (c *Config) Report(report *bbuf.Buffer, title, mode string) {
+func (c *Config) Report(report *bbuf.Buffer, title, mode []byte) {
 	c.reset()
 	report.Reset()
 
 	mw := 0 // mode visible width.
-	if mode != "default" && c.ModeFormat != "" {
-		mw = len([]rune(mode)) + c.modeFormatWidth
+	if string(mode) != "default" && c.ModeFormat != "" {
+		mw = utf8.RuneCount(mode) + c.modeFormatWidth
 
 		report.WriteString(c.ModeFormat[:c.modeFormatIndex])
-		report.WriteString(mode)
+		report.Write(mode)
 		report.WriteString(c.ModeFormat[c.modeFormatIndex+2:]) // 2 == len("%s")
 	}
-	report.WriteTextString(title, c.MaxWidth-mw)
+	report.WriteText(title, c.MaxWidth-mw)
 }
 
 // Print writes the complete i3title's JSON object on the line.

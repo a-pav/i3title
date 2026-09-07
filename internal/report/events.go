@@ -6,6 +6,7 @@ import (
 	"os"
 	"syscall"
 
+	"github.com/a-pav/i3title/internal/bbuf"
 	"go.i3wm.org/i3/v4"
 )
 
@@ -46,25 +47,25 @@ func emitLines(bufferSize uint16, lineCh chan<- []byte, lineDone <-chan struct{}
 }
 
 // emitModes subscribes to i3 mode events and sends the modes to channel.
-func emitModes(modeCh chan<- string) {
+func emitModes(modeCh chan<- []byte) {
 	modeER := i3.Subscribe(i3.ModeEventType)
 
 	for modeER.Next() {
-		modeCh <- modeER.Event().(*i3.ModeEvent).Change
+		modeCh <- bbuf.AsBytes(modeER.Event().(*i3.ModeEvent).Change)
 	}
 
 	log.Printf("WARNING: no more mode event: %v", modeER.Close())
 }
 
 // emitTitles subscribes to i3 window events and sends the titles to channel.
-func emitTitles(titleCh chan<- string) {
+func emitTitles(titleCh chan<- []byte) {
 	windowER := i3.Subscribe(i3.WindowEventType)
 
 	for windowER.Next() {
 		e := windowER.Event().(*i3.WindowEvent)
 		switch e.Change {
 		case "title", "focus":
-			titleCh <- e.Container.WindowProperties.Title
+			titleCh <- bbuf.AsBytes(e.Container.WindowProperties.Title)
 		}
 	}
 

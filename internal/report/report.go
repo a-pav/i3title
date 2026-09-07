@@ -15,13 +15,12 @@ func Run(cfg *config.Config) error {
 		lineDone    = make(chan struct{})
 		messageCh   = make(chan []byte)
 		messageDone = make(chan struct{})
-		titleCh     = make(chan string)
-		modeCh      = make(chan string)
+		titleCh     = make(chan []byte)
+		modeCh      = make(chan []byte)
 	)
 	go reporter(cfg,
-		lineCh, messageCh,
+		lineCh, titleCh, modeCh, messageCh,
 		lineDone, messageDone,
-		titleCh, modeCh,
 	)
 
 	emitLines(cfg.BufSize, lineCh, lineDone)
@@ -46,16 +45,18 @@ func Run(cfg *config.Config) error {
 // reporter is the central event processor that consumes data from all channels
 // and handles the unified reporting logic.
 func reporter(cfg *config.Config,
-	lineCh, messageCh <-chan []byte,
+	lineCh, titleCh, modeCh, messageCh <-chan []byte,
 	lineDone, messageDone chan<- struct{},
-	titleCh, modeCh <-chan string,
 ) {
+	// This should be a big enough buffer, even for all-Unicode characters plus
+	// some more bytes to fit formatings.
+	reportSize := cfg.MaxWidth * 5
 	var (
-		report  = bbuf.New(cfg.MaxWidth * 5) // Outgoing report (Big enough buffer, even for all-Unicode characters.)
-		mode    = "default"                  // Current i3 mode.
-		title   string                       // Current window title.
-		message []byte                       // Piped in message.
-		timer   = time.NewTimer(0)           // Timer for message.
+		report  = bbuf.New(reportSize)                      // Outgoing report
+		mode    = append(make([]byte, 0, 50), "default"...) // Current i3 mode.
+		title   []byte                                      // Current window title.
+		message []byte                                      // Piped in message.
+		timer   = time.NewTimer(0)                          // Timer for message.
 
 		line0 []byte                      // Incoming line from `i3status` stdout.
 		line1 = make([]byte, cfg.BufSize) // Outgoing line with report in it.
@@ -232,19 +233,3 @@ func atoi(b []byte) int {
 	}
 	return n
 }
-
-// Read-only `[]byte(string)` convertions are optimized by compiler:
-// https://github.com/golang/go/issues/2205 (commits=c8adb30,925d2fb,d63c88d).
-// func string2Bytes(s string) []byte {
-// 	if len(s) == 0 {
-// 		return nil
-// 	}
-// 	return unsafe.Slice(unsafe.StringData(s), len(s))
-// }
-
-// func bytes2String(b []byte) string {
-// 	if len(b) == 0 {
-// 		return ""
-// 	}
-// 	return unsafe.String(unsafe.SliceData(b), len(b))
-// }
