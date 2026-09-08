@@ -11,7 +11,6 @@ import (
 )
 
 func Run(cfg *config.Config) error {
-	const cfgI3msg = true // TODO: add this to cfg
 	var (
 		lineCh      = make(chan []byte)
 		lineDone    = make(chan struct{})
@@ -20,27 +19,25 @@ func Run(cfg *config.Config) error {
 		titleCh     = make(chan []byte, 1)
 		modeCh      = make(chan []byte, 1)
 
-		i3recycle func(b []byte)
-		i3get     func() (b []byte)
+		recycleI3 func(b []byte)
+		getI3     func() (b []byte)
 	)
 
-	if cfgI3msg {
-		// initBuf is large enough that it is unlikely that scanner will require another allocation.
-		initBuf, _ := 2*1024, 3*1024 // init=2KB, max=3KB
+	if cfg.I3Msg {
 		pool := make(chan []byte, 2)
 		for range cap(pool) {
-			pool <- make([]byte, 0, initBuf)
+			pool <- make([]byte, 0, cfg.MaxWidth*5)
 		}
-		i3get = func() []byte { b := <-pool; return b[:0] }
-		i3recycle = func(b []byte) { pool <- b }
+		getI3 = func() []byte { b := <-pool; return b[:0] }
+		recycleI3 = func(b []byte) { pool <- b }
 	} else {
-		i3recycle = func(b []byte) {} // noop
+		recycleI3 = func(b []byte) {} // noop
 	}
 
 	go reporter(cfg,
 		lineCh, titleCh, modeCh, messageCh,
 		lineDone, messageDone,
-		i3recycle,
+		recycleI3,
 	)
 
 	emitLines(cfg.BufSize, lineCh, lineDone)
@@ -51,8 +48,8 @@ func Run(cfg *config.Config) error {
 		emitMessages(cfg.Pipe, cfg.MaxWidth*5, messageCh, messageDone)
 	}
 
-	if cfgI3msg {
-		return i3msg.Subscribe(titleCh, modeCh, i3get)
+	if cfg.I3Msg {
+		return i3msg.Subscribe(titleCh, modeCh, getI3)
 	} else {
 		go emitTitles(titleCh)
 
@@ -71,15 +68,15 @@ func Run(cfg *config.Config) error {
 func reporter(cfg *config.Config,
 	lineCh, titleCh, modeCh, messageCh <-chan []byte,
 	lineDone, messageDone chan<- struct{},
-	i3Recycle func(b []byte),
+	recycleI3 func(b []byte),
 ) {
 	// This should be a big enough buffer, even for all-Unicode characters plus
 	// some more bytes to fit formatings.
 	reportSize := cfg.MaxWidth * 5
 	var (
 		report  = bbuf.New(reportSize)                      // Outgoing report
+		title   = make([]byte, 0, reportSize)               // Current window title.
 		mode    = append(make([]byte, 0, 50), "default"...) // Current i3 mode.
-		title   []byte                                      // Current window title.
 		message []byte                                      // Piped in message.
 		timer   = time.NewTimer(0)                          // Timer for message.
 
@@ -165,7 +162,7 @@ func reporter(cfg *config.Config,
 			if len(message) == 0 {
 				newReport()
 			}
-			i3Recycle(t)
+			recycleI3(t)
 		case m, ok := <-modeCh:
 			if !ok {
 				modeCh = nil // disable
@@ -175,7 +172,7 @@ func reporter(cfg *config.Config,
 			if len(message) == 0 {
 				newReport()
 			}
-			i3Recycle(m)
+			recycleI3(m)
 		case message, ok = <-messageCh:
 			if !ok {
 				messageCh = nil // disable

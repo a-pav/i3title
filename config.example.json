@@ -72,5 +72,12 @@
     //     echo $(($(i3status --run-once | wc -c) + max_width * 6))
     //
     // Alternatively, you can use a large value, such as 4096 which is the default.
-    "buffer_size": 4096
+    "buffer_size": 4096,
+
+    // Subscribe to title and mode events via i3-msg (child process).
+    //
+    // The default Go library works well, but this mode takes a leaner
+    // approach: it parses only what it needs directly from the byte stream,
+    // keeping memory usage constant at ~1.2MB, roughly half the default.
+    "i3_msg": false
 }

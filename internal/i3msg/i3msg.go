@@ -17,8 +17,8 @@ var (
 
 func Subscribe(titelCh, modeCh chan<- []byte, get func() (b []byte)) error {
 	cmd := exec.Command("i3-msg",
-		// "i3title" is ignored by i3-msg, but appears in the process name as a hint to the viewer.
-		"-t", "subscribe", `["i3title","window","mode"]`, "-m",
+		// The event type `"i3title"` is ignored by i3-msg, but appears in the process name, serving as a visual hint.
+		"-t", "subscribe", `[ "i3title", "window", "mode" ]`, "-m",
 	)
 	pipe, err := cmd.StdoutPipe()
 	if err != nil {
@@ -28,12 +28,11 @@ func Subscribe(titelCh, modeCh chan<- []byte, get func() (b []byte)) error {
 		return fmt.Errorf("i3msg: start: %v", err)
 	}
 
-	// initBuf is large enough that it is unlikely that scanner will require another allocation.
-	initBuf, maxBuf := 2*1024, 3*1024 // init=2KB, max=3KB
-
 	// Prepare the scanner
 	scnr := bufio.NewScanner(pipe)
-	scnr.Buffer(make([]byte, initBuf), maxBuf)
+	// minBuf is large enough that it is unlikely that scanner will ever reallocate
+	minBuf, maxBuf := 2*1024, 3*1024 // min=2KB, max=3KB
+	scnr.Buffer(make([]byte, minBuf), maxBuf)
 
 	go subscribe(scnr, titelCh, modeCh, get)
 
