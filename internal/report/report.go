@@ -7,20 +7,40 @@ import (
 
 	"github.com/a-pav/i3title/internal/bbuf"
 	"github.com/a-pav/i3title/internal/config"
+	"github.com/a-pav/i3title/internal/i3msg"
 )
 
 func Run(cfg *config.Config) error {
+	const cfgI3msg = true // TODO: add this to cfg
 	var (
 		lineCh      = make(chan []byte)
 		lineDone    = make(chan struct{})
 		messageCh   = make(chan []byte)
 		messageDone = make(chan struct{})
-		titleCh     = make(chan []byte)
-		modeCh      = make(chan []byte)
+		titleCh     = make(chan []byte, 1)
+		modeCh      = make(chan []byte, 1)
+
+		i3recycle func(b []byte)
+		i3get     func() (b []byte)
 	)
+
+	if cfgI3msg {
+		// initBuf is large enough that it is unlikely that scanner will require another allocation.
+		initBuf, _ := 2*1024, 3*1024 // init=2KB, max=3KB
+		pool := make(chan []byte, 2)
+		for range cap(pool) {
+			pool <- make([]byte, 0, initBuf)
+		}
+		i3get = func() []byte { b := <-pool; return b[:0] }
+		i3recycle = func(b []byte) { pool <- b }
+	} else {
+		i3recycle = func(b []byte) {} // noop
+	}
+
 	go reporter(cfg,
 		lineCh, titleCh, modeCh, messageCh,
 		lineDone, messageDone,
+		i3recycle,
 	)
 
 	emitLines(cfg.BufSize, lineCh, lineDone)
@@ -31,12 +51,16 @@ func Run(cfg *config.Config) error {
 		emitMessages(cfg.Pipe, cfg.MaxWidth*5, messageCh, messageDone)
 	}
 
-	go emitTitles(titleCh)
-
-	if cfg.ModeFormat == "" {
-		close(modeCh)
+	if cfgI3msg {
+		return i3msg.Subscribe(titleCh, modeCh, i3get)
 	} else {
-		go emitModes(modeCh)
+		go emitTitles(titleCh)
+
+		if cfg.ModeFormat == "" {
+			close(modeCh)
+		} else {
+			go emitModes(modeCh)
+		}
 	}
 
 	return nil
@@ -47,6 +71,7 @@ func Run(cfg *config.Config) error {
 func reporter(cfg *config.Config,
 	lineCh, titleCh, modeCh, messageCh <-chan []byte,
 	lineDone, messageDone chan<- struct{},
+	i3Recycle func(b []byte),
 ) {
 	// This should be a big enough buffer, even for all-Unicode characters plus
 	// some more bytes to fit formatings.
@@ -135,18 +160,22 @@ func reporter(cfg *config.Config,
 		case line0 = <-lineCh:
 			doPrint() // just print
 			lineDone <- struct{}{}
-		case title = <-titleCh:
+		case t := <-titleCh:
+			title = append(title[:0], t...)
 			if len(message) == 0 {
 				newReport()
 			}
-		case mode, ok = <-modeCh:
+			i3Recycle(t)
+		case m, ok := <-modeCh:
 			if !ok {
 				modeCh = nil // disable
 				continue
 			}
+			mode = append(mode[:0], m...)
 			if len(message) == 0 {
 				newReport()
 			}
+			i3Recycle(m)
 		case message, ok = <-messageCh:
 			if !ok {
 				messageCh = nil // disable
