@@ -17,7 +17,7 @@ var (
 
 func Subscribe(titelCh, modeCh chan<- []byte, get func() (b []byte)) error {
 	cmd := exec.Command("i3-msg",
-		// "i3title" is ignored by i3-msg, but it appears in the process name as a hint to the viewer.
+		// "i3title" is ignored by i3-msg, but appears in the process name as a hint to the viewer.
 		"-t", "subscribe", `["i3title","window","mode"]`, "-m",
 	)
 	pipe, err := cmd.StdoutPipe()
@@ -43,7 +43,6 @@ func Subscribe(titelCh, modeCh chan<- []byte, get func() (b []byte)) error {
 func subscribe(scnr *bufio.Scanner, titelCh, modeCh chan<- []byte, get func() (b []byte)) {
 	for scnr.Scan() {
 		var (
-			buf    = get()
 			data   = scnr.Bytes()
 			change = changeValue(data)
 		)
@@ -51,13 +50,13 @@ func subscribe(scnr *bufio.Scanner, titelCh, modeCh chan<- []byte, get func() (b
 			continue // invalid
 		}
 
-		if mode(data) {
+		switch {
+		case mode(data):
+			buf := get()
 			modeCh <- append(buf, change...)
-		} else {
-			switch string(change) {
-			case "title", "focus":
-				titelCh <- append(buf, titleValue(data)...)
-			}
+		case title(change):
+			buf := get()
+			titelCh <- append(buf, titleValue(data)...)
 		}
 	}
 
@@ -66,18 +65,31 @@ func subscribe(scnr *bufio.Scanner, titelCh, modeCh chan<- []byte, get func() (b
 	}
 }
 
-// mode returns true when the reply payload corresponds to a mode event.
-func mode(b []byte) bool {
-	// b is expected to not include a new line.
+// mode reports whether data is a mode event payload.
+func mode(data []byte) bool {
+	// data is expected to not include a new line.
 	// mode event payloads end with `true}` or `false}`.
-	if b[len(b)-2] == 'e' {
+	if data[len(data)-2] == 'e' {
 		return true
 	}
 	return false
 }
 
+// title reports whether change indicates a title change.
+func title(change []byte) bool {
+	switch string(change) {
+	case "title", "focus":
+		return true
+	default:
+		return false
+	}
+}
+
 // changeValue extracts the value of "change" key inside the JSON payload.
+//
 // When the payload corresponds to a mode event, the value contains the mode name.
+//
+// When the payload corresponds to a window event, the value indicates the type.
 func changeValue(b []byte) []byte {
 	i := bytes.Index(b, changeKey)
 	if i < 0 {
