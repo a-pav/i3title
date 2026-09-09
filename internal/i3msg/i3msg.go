@@ -51,11 +51,10 @@ func subscribe(scnr *bufio.Scanner, titelCh, modeCh chan<- []byte, get func() (b
 
 		switch {
 		case mode(data):
-			buf := get()
-			modeCh <- append(buf, change...)
+			modeCh <- append(get(), change...)
 		case title(change):
-			buf := get()
-			titelCh <- append(buf, titleValue(data)...)
+			tv := titleValue(data)
+			titelCh <- append(get(), tv...)
 		}
 	}
 

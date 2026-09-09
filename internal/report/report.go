@@ -19,25 +19,25 @@ func Run(cfg *config.Config) error {
 		titleCh     = make(chan []byte, 1)
 		modeCh      = make(chan []byte, 1)
 
-		recycleI3 func(b []byte)
-		getI3     func() (b []byte)
+		putI3 func(b []byte)
+		getI3 func() (b []byte)
 	)
 
 	if cfg.I3Msg {
-		pool := make(chan []byte, 2)
+		pool := make(chan []byte, 1)
 		for range cap(pool) {
 			pool <- make([]byte, 0, cfg.MaxWidth*5)
 		}
-		getI3 = func() []byte { b := <-pool; return b[:0] }
-		recycleI3 = func(b []byte) { pool <- b }
+		getI3 = func() []byte { return <-pool }
+		putI3 = func(b []byte) { pool <- b[:0] }
 	} else {
-		recycleI3 = func(b []byte) {} // noop
+		putI3 = func(b []byte) {} // noop
 	}
 
 	go reporter(cfg,
 		lineCh, titleCh, modeCh, messageCh,
 		lineDone, messageDone,
-		recycleI3,
+		putI3,
 	)
 
 	emitLines(cfg.BufSize, lineCh, lineDone)
@@ -68,7 +68,7 @@ func Run(cfg *config.Config) error {
 func reporter(cfg *config.Config,
 	lineCh, titleCh, modeCh, messageCh <-chan []byte,
 	lineDone, messageDone chan<- struct{},
-	recycleI3 func(b []byte),
+	putI3 func(b []byte),
 ) {
 	// This should be a big enough buffer, even for all-Unicode characters plus
 	// some more bytes to fit formatings.
@@ -159,20 +159,20 @@ func reporter(cfg *config.Config,
 			lineDone <- struct{}{}
 		case t := <-titleCh:
 			title = append(title[:0], t...)
+			putI3(t)
 			if len(message) == 0 {
 				newReport()
 			}
-			recycleI3(t)
 		case m, ok := <-modeCh:
 			if !ok {
 				modeCh = nil // disable
 				continue
 			}
 			mode = append(mode[:0], m...)
+			putI3(m)
 			if len(message) == 0 {
 				newReport()
 			}
-			recycleI3(m)
 		case message, ok = <-messageCh:
 			if !ok {
 				messageCh = nil // disable
