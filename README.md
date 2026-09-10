@@ -169,14 +169,18 @@ SYNOPSIS
 OPTIONS
       -m MESSAGE    Display MESSAGE.
       -f FORMAT     Format the message. The FORMAT should contain one %s.
+      -a ALIGN      Align the message: left, center, or right.
       -o OFFSET     Add OFFSET spaces before the message.
+      -M MINWIDTH   Set the minimum width (in pixels) for the message.
+                    Higher values move the message closer to the workspace buttons.
       -T TRIM       Trim the message to TRIM characters.
       -t TIMEOUT    Keep the message for TIMEOUT (default: 4 seconds).
       -i            Mark the message as important. Important messages are queued
                     and displayed one at a time. Transient (unimportant) messages
                     cannot interrupt them while they are running.
       -R            Send the message in RAW MODE.
-      -w            Print the configured i3title maximum width.
+      -w            Print the configured i3title minimum and maximum widths.
+	                Output can be used with eval like: eval $(i3title -w)
       -e            Erase the current message.
       -E            Clear the queue and erase the current message.
       -h            Print usage.
@@ -191,7 +195,9 @@ STDIN
 
       i3toast:-e           Erase the current message.
       i3toast:-f:FORMAT    Set the message format.
+      i3toast:-a:ALIGN     Set the message alignment.
       i3toast:-o:OFFSET    Set the message offset.
+      i3toast:-M:MINWIDTH  Set the message minimum width.
       i3toast:-T:TRIM      Set the message trim width.
 
 TIMEOUT
@@ -223,7 +229,7 @@ TIMEOUT
 
       -t 3,
           Timeout after 3 seconds while the stream is active, default timeout
-		  after EOF.
+          after EOF.
 
 
   Examples:
@@ -231,12 +237,12 @@ TIMEOUT
           Keep the message(s) for 4 seconds.
       -t -1
           Keep the message(s) indefinitely.
-      -t 2,5
+      -t 2,30
           Keep the intermittent messages only for 2 seconds, but keep the final
-          one for 5 seconds.
+          one for 30 seconds.
       -t -1,0
           Keep intermittent messages indefinitely, but instantly timeout after
-		  the final one.
+          the final one.
 
 RAW MODE
   By default, i3title trims messages to the configured max_width and sanitizes

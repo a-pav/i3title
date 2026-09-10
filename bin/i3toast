@@ -6,11 +6,11 @@ readonly VERSION="@VERSION@"
 
 readonly DEFAULT_TIMEOUT=4
 
-readonly RUN_DIR='/dev/shm/i3toast'
-readonly QUEUE_PIDS="$RUN_DIR/queue.pids"
+readonly RUNDIR=/dev/shm/i3toast
+readonly QUEUE_PIDS="$RUNDIR/queue.pids" # No flock: the execution model minimizes the chance of race reasonably well
 
 usage() {
-	cat <<EOF
+	cat <<'EOF'
 
 NAME
       i3toast - send messages to i3title
@@ -22,14 +22,18 @@ SYNOPSIS
 OPTIONS
       -m MESSAGE    Display MESSAGE.
       -f FORMAT     Format the message. The FORMAT should contain one %s.
+      -a ALIGN      Align the message: left, center, or right.
       -o OFFSET     Add OFFSET spaces before the message.
+      -M MINWIDTH   Set the minimum width (in pixels) for the message.
+                    Higher values move the message closer to the workspace buttons.
       -T TRIM       Trim the message to TRIM characters.
       -t TIMEOUT    Keep the message for TIMEOUT (default: 4 seconds).
       -i            Mark the message as important. Important messages are queued
                     and displayed one at a time. Transient (unimportant) messages
                     cannot interrupt them while they are running.
       -R            Send the message in RAW MODE.
-      -w            Print the configured i3title maximum width.
+      -w            Print the configured i3title minimum and maximum widths.
+	                Output can be used with eval like: eval $(i3title -w)
       -e            Erase the current message.
       -E            Clear the queue and erase the current message.
       -h            Print usage.
@@ -44,7 +48,9 @@ STDIN
 
       i3toast:-e           Erase the current message.
       i3toast:-f:FORMAT    Set the message format.
+      i3toast:-a:ALIGN     Set the message alignment.
       i3toast:-o:OFFSET    Set the message offset.
+      i3toast:-M:MINWIDTH  Set the message minimum width.
       i3toast:-T:TRIM      Set the message trim width.
 
 TIMEOUT
@@ -76,7 +82,7 @@ TIMEOUT
 
       -t 3,
           Timeout after 3 seconds while the stream is active, default timeout
-		  after EOF.
+          after EOF.
 
 
   Examples:
@@ -89,7 +95,7 @@ TIMEOUT
           one for 30 seconds.
       -t -1,0
           Keep intermittent messages indefinitely, but instantly timeout after
-		  the final one.
+          the final one.
 
 RAW MODE
   By default, i3title trims messages to the configured max_width and sanitizes
@@ -121,85 +127,66 @@ EOF
 }
 
 setup_env() {
-	# shellcheck source=/dev/null
 	if [ -n "$XDG_CONFIG_HOME" ]; then
-		. "$XDG_CONFIG_HOME/i3title/.env"
+		config_path="$XDG_CONFIG_HOME/i3title/.env"
 	elif [ -n "$HOME" ]; then
-		. "$HOME/.config/i3title/.env"
+		config_path="$HOME/.config/i3title/.env"
 	fi
-
+	# shellcheck source=/dev/null
+	. "${config_path}"         # Source and validate the config
 	: "${I3TITLE_PIPE:?}"
 	: "${I3TITLE_ALIGN:?}"
 	: "${I3TITLE_MIN_WIDTH:?}"
 	: "${I3TITLE_MAX_WIDTH:?}"
 
-	exec 3>"${I3TITLE_PIPE}" # Open the pipe once
+	exec 3>"${I3TITLE_PIPE}" # Open the pipe for writing and attach fd 3
 
-	if [ ! -d "$RUN_DIR" ]; then
-		mkdir -p "$RUN_DIR"
+	if [ ! -d "$RUNDIR" ]; then
+		mkdir -p "$RUNDIR"
 		touch "$QUEUE_PIDS"
 	fi
 }
 
 parse_flags() {
-	important=0
-	rawMode=0
+	_important=0
+	raw_mode=0
 
 	# Set some fields directly to avoid their parsing process
 	align="$I3TITLE_ALIGN"
 	timeoutSTDIN=${DEFAULT_TIMEOUT}
 	timeoutEOF=${DEFAULT_TIMEOUT}
-
 	set_message ""
-	set_format ""
-	set_min_width "$I3TITLE_MIN_WIDTH"
 	set_offset 0
+	set_format ""
+	set_minwidth "$I3TITLE_MIN_WIDTH"
 	set_trim "$I3TITLE_MAX_WIDTH"
 
 	while [ $# -gt 0 ]; do
 		case "$1" in
-		-m)
-			shift; set_message "$1" ;;
-		-t)
-			shift; set_timeout "$1" ;;
-		-f)
-			shift; set_format "$1" ;;
-		-o)
-			shift; set_offset "$1" ;;
-		-a)
-			shift; set_align "$1" ;;
-		-i)
-			important=1 ;;
-		-w)
-			echo "$I3TITLE_MAX_WIDTH"; exit 0 ;;
-		-e)
-			erase; exit 0 ;;
-		-E)
-			:>"$QUEUE_PIDS"; erase; exit 0 ;;
-		-M)
-			shift; set_min_width "$1" ;;
-		-T)
-			shift; set_trim "$1" ;;
-		-R)
-			rawMode=1 ;;
-		-h)
-			usage; exit 0 ;;
-		-v)
-			echo "i3toast $VERSION"; exit 0 ;;
-		-*)
-			echo "Unknown option: $1"
-			echo "Use i3toast -h to print usage."
-			exit 1
-			;;
+		-m) shift; set_message  "$1" ;;
+		-t) shift; set_timeout  "$1" ;;
+		-f) shift; set_format   "$1" ;;
+		-o) shift; set_offset   "$1" ;;
+		-a) shift; set_align    "$1" ;;
+		-M) shift; set_minwidth "$1" ;;
+		-T) shift; set_trim     "$1" ;;
+		-i) _important=1             ;;
+		-R) raw_mode=1               ;;
+		-e) erase; exit 0 ;;
+		-E) :>"$QUEUE_PIDS"; erase; exit 0 ;;
+		-w) grep WIDTH "$config_path"; exit 0 ;;
+		-v) echo "i3toast $VERSION"; exit 0 ;;
+		-h) usage; exit 0 ;;
+		-*) printf 'Unknown option: %s\nUse i3toast -h to print usage.\n' "$1"; exit 1 ;;
 		esac
-
 		shift
 	done
 }
 
-is_important() {
-	test "$important" -eq 1
-}
+set_message()  { message="$1";      }
+set_offset()   { offset_width="$1"; }
+set_trim()     { trim_width="$1";   }
+set_minwidth() { min_width="$1";    }
 
 set_timeout() {
 	case "$1" in
@@ -216,10 +203,6 @@ set_timeout() {
 	: "${timeoutEOF:=${DEFAULT_TIMEOUT}}"
 }
 
-set_message() {
-	message="$1"
-}
-
 set_format() {
 	local fmt="$1"
 	if [ -z "$fmt" ]; then
@@ -230,8 +213,7 @@ set_format() {
 		format_left="${fmt%%'%s'*}"
 		format_right="${fmt#*'%s'}"
 
-		local wid
-		wid="$(printf '%s' "$fmt" | sed -E 's/<\/?[^>]+>//g' | wc -m)"
+		local wid; wid="$(printf '%s' "$fmt" | sed -E 's/<\/?[^>]+>//g' | wc -m)"
 		if [ "$wid" -ge 2 ]; then
 			format_width="$((wid-2))" # len("%s") == 2
 		fi
@@ -246,32 +228,17 @@ set_align() {
 	esac
 }
 
-set_min_width() {
-	min_width="$1"
-}
-
-set_offset() {
-	offset_width="$1"
-}
-
-set_trim() {
-	trim_width="$1"
-}
-
 # Decide how to proceed execution
 decide_process() {
-	if is_important; then
-		if queue_busy; then
-			# Queue self and wait for the wake
+	if important; then
+		if queue_busy; then # Queue self and wait for the wake
 			queue_add $$
 			kill -s STOP $$
-		else
-			# Queue self and proceed
+		else # Queue self and proceed
 			queue_add $$
 		fi
 	elif queue_busy && [ ! -p /dev/stdin ]; then
-		# One-shot messages are dropped when there's a queue
-		exit 0
+		exit 0 # One-shot messages are dropped when there's a queue
 	#else
 	 	# Transient message + empty queue -> proceed
 	fi
@@ -279,34 +246,23 @@ decide_process() {
 
 read_stdin() {
 	while IFS= read -r line || [ -n "$line" ]; do
-		if queue_busy && ! is_important; then
-			# Unimportant piped messages are dropped when there's a queue
-			continue
+		if queue_busy && ! important; then
+			continue # Unimportant piped messages are dropped when there's a queue
 		fi
 
 		case "$line" in
-		i3toast:-e )
-			erase
-			continue
-			;;
-		i3toast:-o:* )
-			set_offset "${line#'i3toast:-o:'}"
-			;;
-		i3toast:-f:* )
-			set_format "${line#'i3toast:-f:'}"
-			;;
-		i3toast:-M:* )
-			set_min_width "${line#'i3toast:-M:'}"
-			;;
-		i3toast:-T:* )
-			set_trim "${line#'i3toast:-T:'}"
-			;;
-		i3toast:-a:* )
-			set_align "${line#'i3toast:-a:'}"
-			;;
+		i3toast:-* )
+			case "$line" in # Slow path: It's a command, figure out which one
+			i3toast:-e   ) erase; continue ;;
+			i3toast:-f:* ) set_format   "${line#i3toast:-f:}" ;;
+			i3toast:-o:* ) set_offset   "${line#i3toast:-o:}" ;;
+			i3toast:-T:* ) set_trim     "${line#i3toast:-T:}" ;;
+			i3toast:-M:* ) set_minwidth "${line#i3toast:-M:}" ;;
+			i3toast:-a:* ) set_align    "${line#i3toast:-a:}" ;;
+			*            ) set_message  "${line}" ;; # Catch the error a message
+			esac ;;
 		* )
-			set_message "${line}"
-			;;
+			set_message "$line" ;; # Common path
 		esac
 
 		send "$timeoutSTDIN"
@@ -330,35 +286,22 @@ send() {
 		"${format_right}" \
 		"${format_width}" \
 		"${trim_width}" \
-		"${rawMode}" \
+		"${raw_mode}" \
 		"${message}" >&3
 }
 
 erase() { send 0; }
 
+important()  { test "$_important" -eq 1; }
 # Check whether the queue is busy (an important message is running)
-queue_busy() {
-	test -s "$QUEUE_PIDS"
-}
-
+queue_busy() { test -s "$QUEUE_PIDS"; }
 # Add pid to the queue
-queue_add() {
-	echo "$1" >>"$QUEUE_PIDS"
-}
-
+queue_add()  { echo "$1" >>"$QUEUE_PIDS"; }
 # Remove pid from the queue
-queue_pop() {
-	sed -i '/^'"$1"'$/d' "$QUEUE_PIDS"
-}
-
-# Echo pid at the top of the queue
-queue_top() {
-	head -n1 "$QUEUE_PIDS"
-}
-
+queue_pop()  { sed -i '/^'"$1"'$/d' "$QUEUE_PIDS"; }
 # Wake the next process in queue
 queue_next() {
-	local next_pid; next_pid="$(queue_top)"
+	local next_pid; next_pid="$(head -n1 "$QUEUE_PIDS")"
 	if [ -n "$next_pid" ] && kill -0 "$next_pid"; then
 		kill -s CONT "$next_pid"
 	fi
@@ -373,7 +316,7 @@ cleanup() {
 		erase
 	fi
 
-	if is_important; then
+	if important; then
 		if [ "$signaled" -eq 0 ] && [ "$timeoutEOF" != '-1' ]; then
 		# Important messages should define a timeout, otherwise they'll remain
 		# in the queue and therefore halt or drop other messages.
