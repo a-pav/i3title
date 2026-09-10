@@ -146,7 +146,9 @@ corresponding status modules in your i3status config. This frees up space, givin
 
         echo "i3toast:-e"           # Erase the current message
         echo "i3toast:-f:<b>%s</b>" # Set the format
+        echo "i3toast:-a:center"    # Set the message alignment
         echo "i3toast:-o:10"        # Set the offset
+        echo "i3toast:-M:800"       # Set the message minimum width (in pixels)
         echo "i3toast:-T:60"        # Set the trim width
 
     } | i3toast
