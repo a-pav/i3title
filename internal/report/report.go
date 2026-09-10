@@ -89,13 +89,13 @@ func reporter(cfg *config.Config,
 	)
 
 	doPrint := func() {
-		c := 0
-		c += copy(lineOt[c:], lineIn[:2]) // 2 == len(",[")
-		c += cfg.Print(lineOt[c:], report.Bytes())
-		c += copy(lineOt[c:], lineIn[2:])
-		c += copy(lineOt[c:], "\n")
+		lineOt = lineOt[:0]
+		lineOt = append(lineOt, lineIn[:2]...) // 2 == len(",[")
+		lineOt = cfg.Print(lineOt, report.Bytes())
+		lineOt = append(lineOt, lineIn[2:]...) // Reallocates if scanners did
+		lineOt = append(lineOt, "\n"...)
 
-		os.Stdout.Write(lineOt[:c])
+		os.Stdout.Write(lineOt)
 	}
 	newReport := func() {
 		cfg.Report(report, title, mode)
@@ -143,12 +143,11 @@ func reporter(cfg *config.Config,
 		lineIn = append(lineIn[:0], l...)
 		put(l)
 
-		lineOt = lineOt[:cap(lineOt)] // TODO: drop `copy` and adopt `append` semantics, everywhere
-		c := 0
-		c += copy(lineOt[c:], lineIn)
-		c += copy(lineOt[c:], "\n")
+		lineOt = lineOt[:0]
+		lineOt = append(lineOt, lineIn...)
+		lineOt = append(lineOt, "\n"...)
 
-		os.Stdout.Write(lineOt[:c])
+		os.Stdout.Write(lineOt)
 	}
 
 	timer.Stop()

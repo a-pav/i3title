@@ -42,21 +42,20 @@ func (c *Config) Report(report *bbuf.Buffer, title, mode []byte) {
 }
 
 // Print writes the complete i3title's JSON object on the line.
-func (c *Config) Print(line, fullText []byte) int {
-	n := 0
-	n += copy(line[n:], `{"name":"i3title","markup":"pango","align":`)
-	n += copy(line[n:], c.align) // "left"
-	n += copy(line[n:], `,"separator":`)
-	n += copy(line[n:], c.Separator) // false
-	n += copy(line[n:], `,"min_width":`)
-	n += copy(line[n:], c.minWidth) // 1234
-	n += copy(line[n:], `,"full_text":`)
-	n += copy(line[n:], c.Format[:c.formatIndex]) // "<span>
-	n += copy(line[n:], fullText)
-	n += copy(line[n:], c.Format[c.formatIndex+2:]) // </span>"
-	n += copy(line[n:], `},`)
+func (c *Config) Print(line, fullText []byte) []byte {
+	line = append(line, `{"name":"i3title","markup":"pango","align":`...)
+	line = append(line, c.align...) // "left"
+	line = append(line, `,"separator":`...)
+	line = append(line, c.Separator...) // false
+	line = append(line, `,"min_width":`...)
+	line = append(line, c.minWidth...) // 1234
+	line = append(line, `,"full_text":`...)
+	line = append(line, c.Format[:c.formatIndex]...) // "<span>
+	line = append(line, fullText...)
+	line = append(line, c.Format[c.formatIndex+2:]...) // </span>"
+	line = append(line, `},`...)
 
-	return n
+	return line
 }
 
 func (c *Config) SetMinWidth(m []byte) {
