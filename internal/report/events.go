@@ -2,6 +2,7 @@ package report
 
 import (
 	"bufio"
+	"fmt"
 	"log"
 	"os"
 	"syscall"
@@ -12,12 +13,12 @@ import (
 
 // emitLines scans [os.Stdin], which is presumed to be data coming from i3status,
 // and sends the data to channel.
-func emitLines(lineCh chan<- []byte, get func() (b []byte)) {
+func emitLines(get func() (b []byte), lineCh chan<- []byte, errCh chan<- error) {
 	scnr := bufio.NewScanner(os.Stdin)
 	// Set maximum buffer size.
 	scnr.Buffer(make([]byte, minBufSize), maxBufSize)
 	if err := scnr.Err(); err != nil {
-		log.Printf("init line scanner: %v", err)
+		errCh <- fmt.Errorf("init line scanner: %v", err)
 		return
 	}
 
@@ -40,24 +41,25 @@ func emitLines(lineCh chan<- []byte, get func() (b []byte)) {
 		}
 
 		if err := scnr.Err(); err != nil {
-			log.Printf("line scanner: %v", err)
+			errCh <- fmt.Errorf("line scanner: %v", err)
+			return
 		}
 	}()
 }
 
 // emitModes subscribes to i3 mode events and sends the modes to channel.
-func emitModes(modeCh chan<- []byte) {
+func emitModes(modeCh chan<- []byte, errCh chan<- error) {
 	modeER := i3.Subscribe(i3.ModeEventType)
 
 	for modeER.Next() {
 		modeCh <- bbuf.AsBytes(modeER.Event().(*i3.ModeEvent).Change)
 	}
 
-	log.Printf("WARNING: no more mode event: %v", modeER.Close())
+	errCh <- fmt.Errorf("no more mode event: %v", modeER.Close())
 }
 
 // emitTitles subscribes to i3 window events and sends the titles to channel.
-func emitTitles(titleCh chan<- []byte) {
+func emitTitles(titleCh chan<- []byte, errCh chan<- error) {
 	windowER := i3.Subscribe(i3.WindowEventType)
 
 	for windowER.Next() {
@@ -68,25 +70,25 @@ func emitTitles(titleCh chan<- []byte) {
 		}
 	}
 
-	log.Printf("WARNING: no more title event: %v", windowER.Close())
+	errCh <- fmt.Errorf("WARNING: no more title event: %v", windowER.Close())
 }
 
 // emitMessages reads from the named pipe at config.Pipe path and sends the data
 // to channel.
-func emitMessages(pipe string, messageCh chan<- []byte, get func() (b []byte)) {
+func emitMessages(pipe string, get func() (b []byte), messageCh chan<- []byte, errCh chan<- error) {
 	// Remove any old pipe.
 	os.Remove(pipe)
 	// Create a new FIFO with 0600 permissions.
 	if err := syscall.Mkfifo(pipe, 0600); err != nil {
-		log.Printf("creating pipe: %v", err)
 		close(messageCh)
+		errCh <- fmt.Errorf("creating message pipe: %v", err)
 		return
 	}
 
 	fi, err := os.OpenFile(pipe, os.O_RDWR, 0600)
 	if err != nil {
-		log.Printf("opening pipe: %v", err)
 		close(messageCh)
+		errCh <- fmt.Errorf("opening message pipe: %v", err)
 		return
 	}
 	// NO defer fi.Close() here - it would close before goroutine finishes.
@@ -98,7 +100,7 @@ func emitMessages(pipe string, messageCh chan<- []byte, get func() (b []byte)) {
 		for {
 			message, isPrefix, err := pipeRd.ReadLine()
 			if err != nil {
-				log.Println("pipe reader:", err)
+				log.Println("message pipe read:", err)
 				break
 			}
 
@@ -109,11 +111,11 @@ func emitMessages(pipe string, messageCh chan<- []byte, get func() (b []byte)) {
 			for isPrefix {
 				_, isPrefix, err = pipeRd.ReadLine()
 				if err != nil {
-					log.Println("pipe reader: discard:", err)
+					log.Println("message pipe discard:", err)
 					break
 				}
 			}
 		}
-		fi.Close()
+		errCh <- fmt.Errorf("message pipe closed: %v", fi.Close())
 	}()
 }

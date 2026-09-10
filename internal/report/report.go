@@ -27,6 +27,8 @@ func Run(cfg *config.Config) error {
 		modeCh  = make(chan []byte, 1)
 		putI3   func(b []byte)
 		getI3   func() (b []byte)
+
+		errCh = make(chan error, 1)
 	)
 	if cfg.I3Msg {
 		getI3, putI3 = createPool(1, cfg.MaxWidth*5)
@@ -41,27 +43,27 @@ func Run(cfg *config.Config) error {
 		titleCh, modeCh, putI3,
 	)
 
-	emitLines(lineCh, get)
+	emitLines(get, lineCh, errCh)
 
 	if cfg.Pipe == "" {
 		close(messageCh)
 	} else {
-		emitMessages(cfg.Pipe, messageCh, get)
+		emitMessages(cfg.Pipe, get, messageCh, errCh)
 	}
 
 	if cfg.I3Msg {
-		return i3msg.Subscribe(titleCh, modeCh, getI3)
+		go i3msg.Subscribe(getI3, titleCh, modeCh, errCh)
 	} else {
-		go emitTitles(titleCh)
+		go emitTitles(titleCh, errCh)
 
 		if cfg.ModeFormat == "" {
 			close(modeCh)
 		} else {
-			go emitModes(modeCh)
+			go emitModes(modeCh, errCh)
 		}
 	}
 
-	return nil
+	return <-errCh
 }
 
 // reporter is the central event processor that consumes data from all channels

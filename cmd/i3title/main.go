@@ -31,9 +31,5 @@ func run() error {
 		return err
 	}
 
-	if err := report.Run(cfg); err != nil {
-		return err
-	}
-
-	select {} // Block forever.
+	return report.Run(cfg)
 }

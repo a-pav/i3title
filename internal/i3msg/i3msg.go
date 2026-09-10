@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"log"
 	"os/exec"
 )
 
@@ -21,28 +20,30 @@ var (
 	titleKey  = []byte(`"title":"`)
 )
 
-func Subscribe(titelCh, modeCh chan<- []byte, get func() (b []byte)) error {
+func Subscribe(get func() (b []byte), titelCh, modeCh chan<- []byte, errCh chan<- error) {
 	cmd := exec.Command("i3-msg",
 		// The event type `"i3title"` is ignored by i3-msg, but appears in the process name, serving as a visual hint.
 		"-t", "subscribe", `[ "i3title", "window", "mode" ]`, "-m",
 	)
 	pipe, err := cmd.StdoutPipe()
 	if err != nil {
-		return fmt.Errorf("i3msg: pipe: %v", err)
+		errCh <- fmt.Errorf("i3msg: pipe: %v", err)
+		return
 	}
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("i3msg: start: %v", err)
+		errCh <- fmt.Errorf("i3msg: start: %v", err)
+		return
 	}
 	// Initialize the scanner
 	scnr := bufio.NewScanner(pipe)
 	scnr.Buffer(make([]byte, minBufSize), maxBufSize)
 
-	go subscribe(scnr, titelCh, modeCh, get)
+	go subscribe(scnr, get, titelCh, modeCh, errCh)
 
-	return cmd.Wait()
+	errCh <- fmt.Errorf("i3-msg: %v", cmd.Wait())
 }
 
-func subscribe(scnr *bufio.Scanner, titelCh, modeCh chan<- []byte, get func() (b []byte)) {
+func subscribe(scnr *bufio.Scanner, get func() (b []byte), titelCh, modeCh chan<- []byte, errCh chan<- error) {
 	for scnr.Scan() {
 		var (
 			data   = scnr.Bytes()
@@ -65,7 +66,7 @@ func subscribe(scnr *bufio.Scanner, titelCh, modeCh chan<- []byte, get func() (b
 	}
 
 	if err := scnr.Err(); err != nil {
-		log.Printf("i3msg scanner: %v", err)
+		errCh <- fmt.Errorf("i3msg scanner: %v", err)
 	}
 }
 
