@@ -7,12 +7,6 @@ import (
 	"os/exec"
 )
 
-const (
-	// Buffer sizes for `i3-msg` scanner
-	minBufSize = 2 * 1024 // large enough that it's unlikely for scanner to reallocate
-	maxBufSize = 3 * 1024
-)
-
 var (
 	// Magic keys that we index inside the JSON payload received from i3-msg
 
@@ -20,11 +14,17 @@ var (
 	titleKey  = []byte(`"title":"`)
 )
 
+// Subscribe to title and mode event via `i3-msg` command.
 func Subscribe(get func() (b []byte), titelCh, modeCh chan<- []byte, errCh chan<- error) {
-	cmd := exec.Command("i3-msg",
-		// The event type `"i3title"` is ignored by i3-msg, but appears in the process name, serving as a visual hint.
-		"-t", "subscribe", `[ "i3title", "window", "mode" ]`, "-m",
-	)
+	// The event type `"i3title"` is ignored by i3-msg,
+	// but appears in the process name, serving as a visual hint.
+	var eventTypes string
+	if modeCh == nil {
+		eventTypes = `[ "i3title", "window" ]` // Only window events
+	} else {
+		eventTypes = `[ "i3title", "window", "mode" ]`
+	}
+	cmd := exec.Command("i3-msg", "-t", "subscribe", eventTypes, "-m")
 	pipe, err := cmd.StdoutPipe()
 	if err != nil {
 		errCh <- fmt.Errorf("i3msg: pipe: %v", err)
@@ -35,6 +35,11 @@ func Subscribe(get func() (b []byte), titelCh, modeCh chan<- []byte, errCh chan<
 		return
 	}
 	// Initialize the scanner
+	const (
+		// Buffer sizes for `i3-msg` scanner
+		minBufSize = 2 * 1024 // large enough that it's unlikely for scanner to reallocate
+		maxBufSize = 3 * 1024
+	)
 	scnr := bufio.NewScanner(pipe)
 	scnr.Buffer(make([]byte, minBufSize), maxBufSize)
 

@@ -51,16 +51,15 @@ func Run(cfg *config.Config) error {
 		emitMessages(cfg.Pipe, get, messageCh, errCh)
 	}
 
+	if cfg.ModeFormat == "" { // Disabled by config
+		close(modeCh)
+		modeCh = nil
+	}
+
 	if cfg.I3Msg {
 		go i3msg.Subscribe(getI3, titleCh, modeCh, errCh)
 	} else {
-		go emitTitles(titleCh, errCh)
-
-		if cfg.ModeFormat == "" {
-			close(modeCh)
-		} else {
-			go emitModes(modeCh, errCh)
-		}
+		go subscribe(titleCh, modeCh, errCh)
 	}
 
 	return <-errCh

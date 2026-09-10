@@ -14,8 +14,8 @@ import (
 // emitLines scans [os.Stdin], which is presumed to be data coming from i3status,
 // and sends the data to channel.
 func emitLines(get func() (b []byte), lineCh chan<- []byte, errCh chan<- error) {
+	// Initialize the scanner
 	scnr := bufio.NewScanner(os.Stdin)
-	// Set maximum buffer size.
 	scnr.Buffer(make([]byte, minBufSize), maxBufSize)
 	if err := scnr.Err(); err != nil {
 		errCh <- fmt.Errorf("init line scanner: %v", err)
@@ -47,30 +47,28 @@ func emitLines(get func() (b []byte), lineCh chan<- []byte, errCh chan<- error) 
 	}()
 }
 
-// emitModes subscribes to i3 mode events and sends the modes to channel.
-func emitModes(modeCh chan<- []byte, errCh chan<- error) {
-	modeER := i3.Subscribe(i3.ModeEventType)
-
-	for modeER.Next() {
-		modeCh <- bbuf.AsBytes(modeER.Event().(*i3.ModeEvent).Change)
+// subscribe to title and mode events via i3 Go package.
+func subscribe(titleCh, modeCh chan<- []byte, errCh chan<- error) {
+	var recvr *i3.EventReceiver
+	if modeCh == nil {
+		recvr = i3.Subscribe(i3.WindowEventType) // Only window events
+	} else {
+		recvr = i3.Subscribe(i3.WindowEventType, i3.ModeEventType)
 	}
 
-	errCh <- fmt.Errorf("no more mode event: %v", modeER.Close())
-}
-
-// emitTitles subscribes to i3 window events and sends the titles to channel.
-func emitTitles(titleCh chan<- []byte, errCh chan<- error) {
-	windowER := i3.Subscribe(i3.WindowEventType)
-
-	for windowER.Next() {
-		e := windowER.Event().(*i3.WindowEvent)
-		switch e.Change {
-		case "title", "focus":
-			titleCh <- bbuf.AsBytes(e.Container.WindowProperties.Title)
+	for recvr.Next() {
+		switch ev := recvr.Event().(type) {
+		case *i3.WindowEvent:
+			switch ev.Change {
+			case "title", "focus":
+				titleCh <- bbuf.AsBytes(ev.Container.WindowProperties.Title)
+			}
+		case *i3.ModeEvent:
+			modeCh <- bbuf.AsBytes(ev.Change)
 		}
 	}
 
-	errCh <- fmt.Errorf("WARNING: no more title event: %v", windowER.Close())
+	errCh <- fmt.Errorf("no more i3 events: %v", recvr.Close())
 }
 
 // emitMessages reads from the named pipe at config.Pipe path and sends the data
