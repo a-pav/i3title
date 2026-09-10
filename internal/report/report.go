@@ -10,42 +10,43 @@ import (
 	"github.com/a-pav/i3title/internal/i3msg"
 )
 
+const (
+	// Buffer sizes for line and message scanners
+	minBufSize = 2 * 1024
+	maxBufSize = 3 * 1024
+)
+
+var ARS = [1]byte{'\036'} // ASCII Record Separator
+
 func Run(cfg *config.Config) error {
 	var (
-		lineCh      = make(chan []byte)
-		lineDone    = make(chan struct{})
-		messageCh   = make(chan []byte)
-		messageDone = make(chan struct{})
-		titleCh     = make(chan []byte, 1)
-		modeCh      = make(chan []byte, 1)
+		lineCh    = make(chan []byte, 1)
+		messageCh = make(chan []byte, 1)
 
-		putI3 func(b []byte)
-		getI3 func() (b []byte)
+		titleCh = make(chan []byte, 1)
+		modeCh  = make(chan []byte, 1)
+		putI3   func(b []byte)
+		getI3   func() (b []byte)
 	)
-
 	if cfg.I3Msg {
-		pool := make(chan []byte, 1)
-		for range cap(pool) {
-			pool <- make([]byte, 0, cfg.MaxWidth*5)
-		}
-		getI3 = func() []byte { return <-pool }
-		putI3 = func(b []byte) { pool <- b[:0] }
+		getI3, putI3 = createPool(1, cfg.MaxWidth*5)
 	} else {
 		putI3 = func(b []byte) {} // noop
 	}
+	// Initialize the memory pool for line and message scanners
+	get, put := createPool(2, minBufSize)
 
 	go reporter(cfg,
-		lineCh, titleCh, modeCh, messageCh,
-		lineDone, messageDone,
-		putI3,
+		lineCh, messageCh, put,
+		titleCh, modeCh, putI3,
 	)
 
-	emitLines(cfg.BufSize, lineCh, lineDone)
+	emitLines(lineCh, get)
 
 	if cfg.Pipe == "" {
 		close(messageCh)
 	} else {
-		emitMessages(cfg.Pipe, cfg.MaxWidth*5, messageCh, messageDone)
+		emitMessages(cfg.Pipe, messageCh, get)
 	}
 
 	if cfg.I3Msg {
@@ -66,35 +67,34 @@ func Run(cfg *config.Config) error {
 // reporter is the central event processor that consumes data from all channels
 // and handles the unified reporting logic.
 func reporter(cfg *config.Config,
-	lineCh, titleCh, modeCh, messageCh <-chan []byte,
-	lineDone, messageDone chan<- struct{},
-	putI3 func(b []byte),
+	lineCh, messageCh <-chan []byte, put func(b []byte),
+	titleCh, modeCh <-chan []byte, putI3 func(b []byte),
 ) {
 	// This should be a big enough buffer, even for all-Unicode characters plus
 	// some more bytes to fit formatings.
 	reportSize := cfg.MaxWidth * 5
 	var (
-		report  = bbuf.New(reportSize)                      // Outgoing report
-		title   = make([]byte, 0, reportSize)               // Current window title.
-		mode    = append(make([]byte, 0, 50), "default"...) // Current i3 mode.
-		message []byte                                      // Piped in message.
-		timer   = time.NewTimer(0)                          // Timer for message.
+		report = bbuf.New(reportSize)                      // Outgoing report
+		title  = make([]byte, 0, reportSize)               // Current window title.
+		mode   = append(make([]byte, 0, 50), "default"...) // Current i3 mode.
 
-		line0 []byte                      // Incoming line from `i3status` stdout.
-		line1 = make([]byte, cfg.BufSize) // Outgoing line with report in it.
+		lineIn = make([]byte, 0, minBufSize) // Incoming line from `i3status` stdout.
+		lineOt = make([]byte, 0, minBufSize) // Outgoing line which includes report.
+
+		message = make([]byte, 0, minBufSize) // Piped in message.
+		timer   = time.NewTimer(0)            // Timer for message.
 
 		offset = bytes.Repeat([]byte{' '}, cfg.MaxWidth) // Offset spaces.
-		ARS    = []byte{'\036'}                          // ASCII Record Separator
 	)
 
 	doPrint := func() {
 		c := 0
-		c += copy(line1[c:], line0[:2]) // 2 == len(",[")
-		c += cfg.Print(line1[c:], report.Bytes())
-		c += copy(line1[c:], line0[2:])
-		c += copy(line1[c:], "\n")
+		c += copy(lineOt[c:], lineIn[:2]) // 2 == len(",[")
+		c += cfg.Print(lineOt[c:], report.Bytes())
+		c += copy(lineOt[c:], lineIn[2:])
+		c += copy(lineOt[c:], "\n")
 
-		os.Stdout.Write(line1[:c])
+		os.Stdout.Write(lineOt[:c])
 	}
 	newReport := func() {
 		cfg.Report(report, title, mode)
@@ -135,28 +135,28 @@ func reporter(cfg *config.Config,
 
 		doPrint()
 	}
-
 	// The first two lines are i3bar protocol handshake and the third line is the
 	// odd one without a comma `,` at its front, so these are printed verbatim.
 	for range 3 {
-		line0 = <-lineCh
+		l := <-lineCh
+		lineIn = append(lineIn[:0], l...)
+		put(l)
 
+		lineOt = lineOt[:cap(lineOt)] // TODO: drop `copy` and adopt `append` semantics, everywhere
 		c := 0
-		c += copy(line1[c:], line0)
-		c += copy(line1[c:], "\n")
+		c += copy(lineOt[c:], lineIn)
+		c += copy(lineOt[c:], "\n")
 
-		os.Stdout.Write(line1[:c])
-
-		lineDone <- struct{}{}
+		os.Stdout.Write(lineOt[:c])
 	}
 
 	timer.Stop()
 	for { // main loop
-		var ok bool
 		select {
-		case line0 = <-lineCh:
+		case l := <-lineCh:
+			lineIn = append(lineIn[:0], l...)
+			put(l)
 			doPrint() // just print
-			lineDone <- struct{}{}
 		case t := <-titleCh:
 			title = append(title[:0], t...)
 			putI3(t)
@@ -164,16 +164,18 @@ func reporter(cfg *config.Config,
 				newReport()
 			}
 		case m, ok := <-modeCh:
+			mode = append(mode[:0], m...)
+			putI3(m)
 			if !ok {
 				modeCh = nil // disable
 				continue
 			}
-			mode = append(mode[:0], m...)
-			putI3(m)
 			if len(message) == 0 {
 				newReport()
 			}
-		case message, ok = <-messageCh:
+		case m, ok := <-messageCh:
+			message = append(message[:0], m...)
+			put(m)
 			if !ok {
 				messageCh = nil // disable
 				continue
@@ -193,12 +195,26 @@ func reporter(cfg *config.Config,
 				timer.Stop()
 				newReport()
 			}
-			messageDone <- struct{}{}
 		case <-timer.C:
 			message = message[:0] // Erase message
 			newReport()
 		}
 	}
+}
+
+// createPool creates a pool of n zero-length []byte buffers, each with the given
+// capacity size.
+//
+// It returns a pair of functions for acquiring and releasing buffers.
+func createPool(n, size int) (get func() []byte, put func([]byte)) {
+	pool := make(chan []byte, n)
+	for range cap(pool) {
+		pool <- make([]byte, 0, size)
+	}
+	get = func() []byte { return <-pool }
+	put = func(b []byte) { pool <- b[:0] }
+
+	return
 }
 
 // splitN is an allocation-free version of [bytes.SplitN] that writes into parts.

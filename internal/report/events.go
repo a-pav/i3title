@@ -12,12 +12,11 @@ import (
 
 // emitLines scans [os.Stdin], which is presumed to be data coming from i3status,
 // and sends the data to channel.
-func emitLines(bufferSize uint16, lineCh chan<- []byte, lineDone <-chan struct{}) {
-	lineScnr := bufio.NewScanner(os.Stdin)
+func emitLines(lineCh chan<- []byte, get func() (b []byte)) {
+	scnr := bufio.NewScanner(os.Stdin)
 	// Set maximum buffer size.
-	buf := make([]byte, bufferSize)
-	lineScnr.Buffer(buf, 0)
-	if err := lineScnr.Err(); err != nil {
+	scnr.Buffer(make([]byte, minBufSize), maxBufSize)
+	if err := scnr.Err(); err != nil {
 		log.Printf("init line scanner: %v", err)
 		return
 	}
@@ -29,18 +28,18 @@ func emitLines(bufferSize uint16, lineCh chan<- []byte, lineDone <-chan struct{}
 	// 		[{"name": ... ]
 	// 		,[{"name": ... ]
 	for range 4 {
-		lineScnr.Scan()
-		lineCh <- lineScnr.Bytes()
-		<-lineDone
+		scnr.Scan()
+		buf := get()
+		lineCh <- append(buf, scnr.Bytes()...)
 	}
 
 	go func() {
-		for lineScnr.Scan() {
-			lineCh <- lineScnr.Bytes()
-			<-lineDone
+		for scnr.Scan() {
+			buf := get()
+			lineCh <- append(buf, scnr.Bytes()...)
 		}
 
-		if err := lineScnr.Err(); err != nil {
+		if err := scnr.Err(); err != nil {
 			log.Printf("line scanner: %v", err)
 		}
 	}()
@@ -74,7 +73,7 @@ func emitTitles(titleCh chan<- []byte) {
 
 // emitMessages reads from the named pipe at config.Pipe path and sends the data
 // to channel.
-func emitMessages(pipe string, bufferSize int, messageCh chan<- []byte, messageDone <-chan struct{}) {
+func emitMessages(pipe string, messageCh chan<- []byte, get func() (b []byte)) {
 	// Remove any old pipe.
 	os.Remove(pipe)
 	// Create a new FIFO with 0600 permissions.
@@ -93,7 +92,7 @@ func emitMessages(pipe string, bufferSize int, messageCh chan<- []byte, messageD
 	// NO defer fi.Close() here - it would close before goroutine finishes.
 
 	// Set maximum buffer size.
-	pipeRd := bufio.NewReaderSize(fi, bufferSize)
+	pipeRd := bufio.NewReaderSize(fi, minBufSize)
 
 	go func() {
 		for {
@@ -103,8 +102,8 @@ func emitMessages(pipe string, bufferSize int, messageCh chan<- []byte, messageD
 				break
 			}
 
-			messageCh <- message
-			<-messageDone
+			buf := get()
+			messageCh <- append(buf, message...)
 
 			// Discard the remainder of an overlong line.
 			for isPrefix {

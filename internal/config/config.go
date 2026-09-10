@@ -16,7 +16,6 @@ type Config struct {
 	Align      json.RawMessage `json:"align"`       // Text alignment.
 	Separator  json.RawMessage `json:"separator"`   // boolean
 	Pipe       string          `json:"pipe"`        // FIFO named pipe for sending messages to overwrite the report.
-	BufSize    uint16          `json:"buffer_size"` // Buffer size of both stdin scanner and stdout printer.
 	I3Msg      bool            `json:"i3_msg"`      // Alternative mode of execution that runs `i3-msg` as child process for subscribing to `title` and `mode` events.
 
 	minWidth        []byte `json:"-"` // Clone of [Config.MinWidth] that can be adjusted by incoming message.
@@ -99,8 +98,7 @@ func (c *Config) reset() {
 // newConfig return a usable config.
 func newConfig() *Config {
 	c := Config{
-		BufSize:  4096, // more than it's necessary
-		MaxWidth: 60,   // less than it's possible
+		MaxWidth: 60, // less than it's possible
 		Pipe:     "/tmp/i3title.pipe",
 
 		Format:      []byte(`"%s"`),

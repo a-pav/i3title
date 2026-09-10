@@ -8,6 +8,12 @@ import (
 	"os/exec"
 )
 
+const (
+	// Buffer sizes for `i3-msg` scanner
+	minBufSize = 2 * 1024 // large enough that it's unlikely for scanner to reallocate
+	maxBufSize = 3 * 1024
+)
+
 var (
 	// Magic keys that we index inside the JSON payload received from i3-msg
 
@@ -27,12 +33,9 @@ func Subscribe(titelCh, modeCh chan<- []byte, get func() (b []byte)) error {
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("i3msg: start: %v", err)
 	}
-
-	// Prepare the scanner
+	// Initialize the scanner
 	scnr := bufio.NewScanner(pipe)
-	// minBuf is large enough that it is unlikely that scanner will ever reallocate
-	minBuf, maxBuf := 2*1024, 3*1024 // min=2KB, max=3KB
-	scnr.Buffer(make([]byte, minBuf), maxBuf)
+	scnr.Buffer(make([]byte, minBufSize), maxBufSize)
 
 	go subscribe(scnr, titelCh, modeCh, get)
 
@@ -50,11 +53,14 @@ func subscribe(scnr *bufio.Scanner, titelCh, modeCh chan<- []byte, get func() (b
 		}
 
 		switch {
-		case mode(data):
-			modeCh <- append(get(), change...)
-		case title(change):
-			tv := titleValue(data)
-			titelCh <- append(get(), tv...)
+		case modeEvent(data):
+			mode := change
+			buf := get()
+			modeCh <- append(buf, mode...)
+		case titleEvent(change):
+			title := titleValue(data)
+			buf := get()
+			titelCh <- append(buf, title...)
 		}
 	}
 
@@ -63,8 +69,8 @@ func subscribe(scnr *bufio.Scanner, titelCh, modeCh chan<- []byte, get func() (b
 	}
 }
 
-// mode reports whether data is a mode event payload.
-func mode(data []byte) bool {
+// modeEvent reports whether data is a mode event payload.
+func modeEvent(data []byte) bool {
 	// data is expected to not include a new line.
 	// mode event payloads end with `true}` or `false}`.
 	if data[len(data)-2] == 'e' {
@@ -73,8 +79,8 @@ func mode(data []byte) bool {
 	return false
 }
 
-// title reports whether change indicates a title change.
-func title(change []byte) bool {
+// titleEvent reports whether change indicates a title event.
+func titleEvent(change []byte) bool {
 	switch string(change) {
 	case "title", "focus":
 		return true
