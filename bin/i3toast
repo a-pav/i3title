@@ -5,6 +5,7 @@
 readonly VERSION="@VERSION@"
 
 readonly DEFAULT_TIMEOUT=4
+readonly DEFAULT_TRANSIT=0.15 # Transition delay for ticker mode
 
 readonly RUNDIR=/dev/shm/i3toast
 readonly QUEUE_PIDS="$RUNDIR/queue.pids" # No flock: the execution model minimizes the chance of race reasonably well
@@ -149,7 +150,7 @@ setup_env() {
 
 parse_flags() {
 	_important=0
-	raw_mode=0
+	_ticker=0
 
 	# Set some fields directly to avoid their parsing process
 	align="$I3TITLE_ALIGN"
@@ -160,6 +161,7 @@ parse_flags() {
 	set_format ""
 	set_minwidth "$I3TITLE_MIN_WIDTH"
 	set_trim "$I3TITLE_MAX_WIDTH"
+	raw_mode=0
 
 	while [ $# -gt 0 ]; do
 		case "$1" in
@@ -170,6 +172,7 @@ parse_flags() {
 		-a) shift; set_align    "$1" ;;
 		-M) shift; set_minwidth "$1" ;;
 		-T) shift; set_trim     "$1" ;;
+		-N) shift; set_ticker   "$1" ;;
 		-i) _important=1             ;;
 		-R) raw_mode=1               ;;
 		-e) erase; exit 0 ;;
@@ -201,6 +204,24 @@ set_timeout() {
 	esac
 	: "${timeoutSTDIN:=${DEFAULT_TIMEOUT}}"
 	: "${timeoutEOF:=${DEFAULT_TIMEOUT}}"
+}
+
+set_ticker() {
+	_ticker=1
+	tickerTRANSIT="$DEFAULT_TRANSIT"
+	case "$1" in
+	*,*)
+		tickerDISPLAY="$(echo "${1%,*}" | xargs)"
+		tickerTRANSIT="$(echo "${1#*,}" | xargs)"
+		;;
+	*)
+		tickerDISPLAY="$1"
+		;;
+	esac
+	: "${tickerTRANSIT:=${DEFAULT_TRANSIT}}"
+	if [ -z "$tickerDISPLAY" ]; then
+		_ticker=0 # User has to provide correct value for display time
+	fi
 }
 
 set_format() {
@@ -245,33 +266,67 @@ decide_process() {
 }
 
 read_stdin() {
+	if ticker; then
+		ARS="$(printf '\036')"
+		prevMsg=""
+	fi
+
 	while IFS= read -r line || [ -n "$line" ]; do
 		if queue_busy && ! important; then
 			continue # Unimportant piped messages are dropped when there's a queue
 		fi
 
-		case "$line" in
-		i3toast:-* )
-			case "$line" in # Slow path: It's a command, figure out which one
-			i3toast:-e   ) erase; continue ;;
-			i3toast:-f:* ) set_format   "${line#i3toast:-f:}" ;;
-			i3toast:-o:* ) set_offset   "${line#i3toast:-o:}" ;;
-			i3toast:-T:* ) set_trim     "${line#i3toast:-T:}" ;;
-			i3toast:-M:* ) set_minwidth "${line#i3toast:-M:}" ;;
-			i3toast:-a:* ) set_align    "${line#i3toast:-a:}" ;;
-			*            ) set_message  "${line}" ;; # Catch the error a message
-			esac ;;
-		* )
-			set_message "$line" ;; # Common path
+		parse_stdin "$line"
+		local rc=$?
+		case $rc in
+		0)
+			if ! ticker; then
+				send "$timeoutSTDIN" # Common path
+			else
+				set_message "${prevMsg}${ARS}${line}"; prevMsg="$line"
+				send "$timeoutSTDIN"
+				sleep "$tickerTRANSIT"
+
+				set_message "${line}"
+				send "$timeoutSTDIN"
+				sleep "$tickerDISPLAY"
+			fi
+			;; # message
+		1)
+			send "$timeoutSTDIN"
+			;; # flag
+		2)
+			continue
+			;; # erase
 		esac
-
-		send "$timeoutSTDIN"
-
 	done </dev/stdin
 
 	if [ "$timeoutSTDIN" != "$timeoutEOF" ]; then
 		send "$timeoutEOF"
 	fi
+}
+
+parse_stdin() {
+	# $1: line
+	# rc: 0=message/1=flag/2=erase
+	local rc=0 # message, the common code
+
+	case "$1" in
+	i3toast:-* )
+		case "$1" in # Slow path: It's a command, figure out which one
+		i3toast:-e   ) erase;                           rc=2 ;;
+		i3toast:-f:* ) set_format   "${1#i3toast:-f:}"; rc=1 ;;
+		i3toast:-o:* ) set_offset   "${1#i3toast:-o:}"; rc=1 ;;
+		i3toast:-T:* ) set_trim     "${1#i3toast:-T:}"; rc=1 ;;
+		i3toast:-M:* ) set_minwidth "${1#i3toast:-M:}"; rc=1 ;;
+		i3toast:-a:* ) set_align    "${1#i3toast:-a:}"; rc=1 ;;
+		*            ) set_message  "${1}" ;; # Catch the error a message
+		esac ;;
+	* )
+		set_message "$1" ;; # Common path
+	esac
+
+	return $rc
 }
 
 send() {
@@ -291,6 +346,8 @@ send() {
 }
 
 erase() { send 0; }
+
+ticker()  { test "$_ticker" -eq 1; }
 
 important()  { test "$_important" -eq 1; }
 # Check whether the queue is busy (an important message is running)

@@ -71,12 +71,11 @@ func reporter(cfg *config.Config,
 	lineCh, messageCh <-chan []byte, put func(b []byte),
 	titleCh, modeCh <-chan []byte, putI3 func(b []byte),
 ) {
-	// This should be a big enough buffer, even for all-Unicode characters plus
-	// some more bytes to fit formatings.
-	reportSize := cfg.MaxWidth * 5
+	// Report should be a big enough buffer, even for all-Unicode characters plus
+	// some more bytes to fit the formatings.
 	var (
-		report = bbuf.New(reportSize)                      // Outgoing report
-		title  = make([]byte, 0, reportSize)               // Current window title.
+		report = bbuf.New(cfg.MaxWidth * 8)                // Outgoing report
+		title  = make([]byte, 0, cfg.MaxWidth*4)           // Current window title.
 		mode   = append(make([]byte, 0, 50), "default"...) // Current i3 mode.
 
 		lineIn = make([]byte, 0, minBufSize) // Incoming line from `i3status` stdout.
@@ -126,8 +125,16 @@ func reporter(cfg *config.Config,
 			if rawMode == 1 {
 				report.Write(text)
 			} else {
-				formatWidth += offsetWidth
-				report.WriteText(text, min(cfg.MaxWidth-formatWidth, trimWidth))
+				width := min(cfg.MaxWidth-offsetWidth-formatWidth, trimWidth)
+				var lines [2][]byte
+				if n := splitN(lines[:], text, ARS[0]); n == 2 {
+					report.WriteText(lines[0], width)
+					report.WriteString("\u2029")
+					report.Write(offset[:offsetWidth])
+					report.WriteText(lines[1], width)
+				} else {
+					report.WriteText(text, width)
+				}
 			}
 			report.Write(formatRight)
 		} else {
