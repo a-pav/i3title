@@ -15,7 +15,7 @@ var (
 )
 
 // Subscribe to title and mode event via `i3-msg` command.
-func Subscribe(get func() (b []byte), titelCh, modeCh chan<- []byte, errCh chan<- error) {
+func Subscribe(titelCh, modeCh chan<- []byte, i3Done <-chan struct{}, errCh chan<- error) {
 	// The event type `"i3title"` is ignored by i3-msg,
 	// but appears in the process name, serving as a visual hint.
 	var eventTypes string
@@ -43,12 +43,12 @@ func Subscribe(get func() (b []byte), titelCh, modeCh chan<- []byte, errCh chan<
 	scnr := bufio.NewScanner(pipe)
 	scnr.Buffer(make([]byte, minBufSize), maxBufSize)
 
-	go subscribe(scnr, get, titelCh, modeCh, errCh)
+	go subscribe(scnr, titelCh, modeCh, i3Done, errCh)
 
 	errCh <- fmt.Errorf("i3-msg: %v", cmd.Wait())
 }
 
-func subscribe(scnr *bufio.Scanner, get func() (b []byte), titelCh, modeCh chan<- []byte, errCh chan<- error) {
+func subscribe(scnr *bufio.Scanner, titelCh, modeCh chan<- []byte, i3Done <-chan struct{}, errCh chan<- error) {
 	for scnr.Scan() {
 		var (
 			data   = scnr.Bytes()
@@ -61,12 +61,12 @@ func subscribe(scnr *bufio.Scanner, get func() (b []byte), titelCh, modeCh chan<
 		switch {
 		case modeEvent(data):
 			mode := change
-			buf := get()
-			modeCh <- append(buf, mode...)
+			modeCh <- mode
+			<-i3Done
 		case titleEvent(change):
 			title := titleValue(data)
-			buf := get()
-			titelCh <- append(buf, title...)
+			titelCh <- title
+			<-i3Done
 		}
 	}
 

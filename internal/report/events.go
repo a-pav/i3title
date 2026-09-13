@@ -8,12 +8,13 @@ import (
 	"syscall"
 
 	"github.com/a-pav/i3title/internal/bbuf"
+
 	"go.i3wm.org/i3/v4"
 )
 
 // emitLines scans [os.Stdin], which is presumed to be data coming from i3status,
 // and sends the data to channel.
-func emitLines(get func() (b []byte), lineCh chan<- []byte, errCh chan<- error) {
+func emitLines(lineCh chan<- []byte, lineDone <-chan struct{}, errCh chan<- error) {
 	// Initialize the scanner
 	scnr := bufio.NewScanner(os.Stdin)
 	scnr.Buffer(make([]byte, minBufSize), maxBufSize)
@@ -30,14 +31,14 @@ func emitLines(get func() (b []byte), lineCh chan<- []byte, errCh chan<- error) 
 	// 		,[{"name": ... ]
 	for range 4 {
 		scnr.Scan()
-		buf := get()
-		lineCh <- append(buf, scnr.Bytes()...)
+		lineCh <- scnr.Bytes()
+		<-lineDone
 	}
 
 	go func() {
 		for scnr.Scan() {
-			buf := get()
-			lineCh <- append(buf, scnr.Bytes()...)
+			lineCh <- scnr.Bytes()
+			<-lineDone
 		}
 
 		if err := scnr.Err(); err != nil {
@@ -48,7 +49,7 @@ func emitLines(get func() (b []byte), lineCh chan<- []byte, errCh chan<- error) 
 }
 
 // subscribe to title and mode events via i3 Go package.
-func subscribe(titleCh, modeCh chan<- []byte, errCh chan<- error) {
+func subscribe(titleCh, modeCh chan<- []byte, i3Done <-chan struct{}, errCh chan<- error) {
 	var recvr *i3.EventReceiver
 	if modeCh == nil {
 		recvr = i3.Subscribe(i3.WindowEventType) // Only window events
@@ -62,9 +63,11 @@ func subscribe(titleCh, modeCh chan<- []byte, errCh chan<- error) {
 			switch ev.Change {
 			case "title", "focus":
 				titleCh <- bbuf.AsBytes(ev.Container.WindowProperties.Title)
+				<-i3Done
 			}
 		case *i3.ModeEvent:
 			modeCh <- bbuf.AsBytes(ev.Change)
+			<-i3Done
 		}
 	}
 
@@ -73,7 +76,7 @@ func subscribe(titleCh, modeCh chan<- []byte, errCh chan<- error) {
 
 // emitMessages reads from the named pipe at config.Pipe path and sends the data
 // to channel.
-func emitMessages(pipe string, get func() (b []byte), messageCh chan<- []byte, errCh chan<- error) {
+func emitMessages(pipe string, messageCh chan<- []byte, messageDone <-chan struct{}, errCh chan<- error) {
 	// Remove any old pipe.
 	os.Remove(pipe)
 	// Create a new FIFO with 0600 permissions.
@@ -102,8 +105,8 @@ func emitMessages(pipe string, get func() (b []byte), messageCh chan<- []byte, e
 				break
 			}
 
-			buf := get()
-			messageCh <- append(buf, message...)
+			messageCh <- message
+			<-messageDone
 
 			// Discard the remainder of an overlong line.
 			for isPrefix {

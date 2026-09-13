@@ -19,36 +19,33 @@ const (
 var ARS = [1]byte{'\036'} // ASCII Record Separator
 
 func Run(cfg *config.Config) error {
+	// We use unbuffered channels to benefit from runtime optimizations and
+	// direct stack handoffs. This ultimately gives us a much better performance
+	// than having fully async operations.
 	var (
-		lineCh    = make(chan []byte, 1)
-		messageCh = make(chan []byte, 1)
+		lineCh   = make(chan []byte)
+		lineDone = make(chan struct{})
 
-		titleCh = make(chan []byte, 1)
-		modeCh  = make(chan []byte, 1)
-		putI3   func(b []byte)
-		getI3   func() (b []byte)
+		messageCh   = make(chan []byte)
+		messageDone = make(chan struct{})
 
-		errCh = make(chan error, 1)
+		titleCh = make(chan []byte)
+		modeCh  = make(chan []byte)
+		i3Done  = make(chan struct{})
+
+		errCh = make(chan error)
 	)
-	if cfg.I3Msg {
-		getI3, putI3 = createPool(1, cfg.MaxWidth*5)
-	} else {
-		putI3 = func(b []byte) {} // noop
-	}
-	// Initialize the memory pool for line and message scanners
-	get, put := createPool(2, minBufSize)
-
 	go reporter(cfg,
-		lineCh, messageCh, put,
-		titleCh, modeCh, putI3,
+		lineCh, titleCh, modeCh, messageCh,
+		lineDone, i3Done, messageDone,
 	)
 
-	emitLines(get, lineCh, errCh)
+	emitLines(lineCh, lineDone, errCh)
 
 	if cfg.Pipe == "" {
 		close(messageCh)
 	} else {
-		emitMessages(cfg.Pipe, get, messageCh, errCh)
+		emitMessages(cfg.Pipe, messageCh, messageDone, errCh)
 	}
 
 	if cfg.ModeFormat == "" { // Disabled by config
@@ -57,9 +54,9 @@ func Run(cfg *config.Config) error {
 	}
 
 	if cfg.I3Msg {
-		go i3msg.Subscribe(getI3, titleCh, modeCh, errCh)
+		go i3msg.Subscribe(titleCh, modeCh, i3Done, errCh)
 	} else {
-		go subscribe(titleCh, modeCh, errCh)
+		go subscribe(titleCh, modeCh, i3Done, errCh)
 	}
 
 	return <-errCh
@@ -68,33 +65,34 @@ func Run(cfg *config.Config) error {
 // reporter is the central event processor that consumes data from all channels
 // and handles the unified reporting logic.
 func reporter(cfg *config.Config,
-	lineCh, messageCh <-chan []byte, put func(b []byte),
-	titleCh, modeCh <-chan []byte, putI3 func(b []byte),
+	lineCh, titleCh, modeCh, messageCh <-chan []byte,
+	lineDone, i3Done, messageDone chan<- struct{},
 ) {
 	// Report should be a big enough buffer, even for all-Unicode characters plus
 	// some more bytes to fit the formatings.
 	var (
-		report = bbuf.New(cfg.MaxWidth * 8)                // Outgoing report
-		title  = make([]byte, 0, cfg.MaxWidth*4)           // Current window title.
-		mode   = append(make([]byte, 0, 50), "default"...) // Current i3 mode.
+		report = bbuf.New(cfg.MaxWidth * 8) // The report
 
-		lineIn = make([]byte, 0, minBufSize) // Incoming line from `i3status` stdout.
-		lineOt = make([]byte, 0, minBufSize) // Outgoing line which includes report.
+		title = make([]byte, 0, cfg.MaxWidth*4)            // Current window title.
+		mode  = append(make([]byte, 0, 128), "default"...) // Current i3 mode.
 
-		message = make([]byte, 0, minBufSize) // Piped in message.
-		timer   = time.NewTimer(0)            // Timer for message.
+		line0 = make([]byte, maxBufSize) // Incoming line from `i3status` stdout.
+		line1 = make([]byte, maxBufSize) // Outgoing line which includes the report.
+
+		message []byte             // Piped in message.
+		timer   = time.NewTimer(0) // Timer for message.
 
 		offset = bytes.Repeat([]byte{' '}, cfg.MaxWidth) // Offset spaces.
 	)
 
 	doPrint := func() {
-		lineOt = lineOt[:0]
-		lineOt = append(lineOt, lineIn[:2]...) // 2 == len(",[")
-		lineOt = cfg.Print(lineOt, report.Bytes())
-		lineOt = append(lineOt, lineIn[2:]...) // Reallocates if scanners did
-		lineOt = append(lineOt, "\n"...)
+		c := 0
+		c += copy(line1[c:], line0[:2])
+		c += cfg.Print(line1[c:], report.Bytes())
+		c += copy(line1[c:], line0[2:])
+		c += copy(line1[c:], "\n")
 
-		os.Stdout.Write(lineOt)
+		os.Stdout.Write(line1[:c])
 	}
 	newReport := func() {
 		cfg.Report(report, title, mode)
@@ -146,50 +144,47 @@ func reporter(cfg *config.Config,
 	// The first two lines are i3bar protocol handshake and the third line is the
 	// odd one without a comma `,` at its front, so these are printed verbatim.
 	for range 3 {
-		l := <-lineCh
-		lineIn = append(lineIn[:0], l...)
-		put(l)
-
-		lineOt = lineOt[:0]
-		lineOt = append(lineOt, lineIn...)
-		lineOt = append(lineOt, "\n"...)
-
-		os.Stdout.Write(lineOt)
+		c := copy(line1[0:], <-lineCh)
+		c += copy(line1[c:], "\n")
+		os.Stdout.Write(line1[:c])
+		lineDone <- struct{}{}
 	}
 
 	timer.Stop()
 	for { // main loop
+		var ok bool
 		select {
-		case l := <-lineCh:
-			lineIn = append(lineIn[:0], l...)
-			put(l)
+		case ln0 := <-lineCh:
+			line0 = line0[:copy(line0[:cap(line0)], ln0)]
 			doPrint() // just print
-		case t := <-titleCh:
-			title = append(title[:0], t...)
-			putI3(t)
+			lineDone <- struct{}{}
+		case tt0 := <-titleCh:
+			title = title[:copy(title[:cap(title)], tt0)]
 			if len(message) == 0 {
 				newReport()
 			}
-		case m, ok := <-modeCh:
-			mode = append(mode[:0], m...)
-			putI3(m)
+			i3Done <- struct{}{}
+		case md0, ok := <-modeCh:
 			if !ok {
 				modeCh = nil // disable
 				continue
 			}
+			mode = mode[:copy(mode[:cap(mode)], md0)]
 			if len(message) == 0 {
 				newReport()
 			}
-		case m, ok := <-messageCh:
-			message = append(message[:0], m...)
-			put(m)
+			i3Done <- struct{}{}
+		case message, ok = <-messageCh:
 			if !ok {
 				messageCh = nil // disable
 				continue
 			}
 			var parts [2][]byte
 			splitN(parts[:], message, ARS[0])
-			timeout, msg := atoi(parts[0]), parts[1]
+			var (
+				timeout = atoi(parts[0])
+				msg     = parts[1]
+			)
 			switch {
 			case timeout > 0: // Common path
 				newMessage(msg)
@@ -202,26 +197,12 @@ func reporter(cfg *config.Config,
 				timer.Stop()
 				newReport()
 			}
+			messageDone <- struct{}{}
 		case <-timer.C:
 			message = message[:0] // Erase message
 			newReport()
 		}
 	}
-}
-
-// createPool creates a pool of n zero-length []byte buffers, each with the given
-// capacity size.
-//
-// It returns a pair of functions for acquiring and releasing buffers.
-func createPool(n, size int) (get func() []byte, put func([]byte)) {
-	pool := make(chan []byte, n)
-	for range cap(pool) {
-		pool <- make([]byte, 0, size)
-	}
-	get = func() []byte { return <-pool }
-	put = func(b []byte) { pool <- b[:0] }
-
-	return
 }
 
 // splitN is an allocation-free version of [bytes.SplitN] that writes into parts.

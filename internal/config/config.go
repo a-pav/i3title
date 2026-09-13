@@ -42,34 +42,35 @@ func (c *Config) Report(report *bbuf.Buffer, title, mode []byte) {
 }
 
 // Print writes the complete i3title's JSON object on the line.
-func (c *Config) Print(line, fullText []byte) []byte {
-	line = append(line, `{"name":"i3title","markup":"pango","align":`...)
-	line = append(line, c.align...) // "left"
-	line = append(line, `,"separator":`...)
-	line = append(line, c.Separator...) // false
-	line = append(line, `,"min_width":`...)
-	line = append(line, c.minWidth...) // 1234
-	line = append(line, `,"full_text":`...)
-	line = append(line, c.Format[:c.formatIndex]...) // "<span>
-	line = append(line, fullText...)
-	line = append(line, c.Format[c.formatIndex+2:]...) // </span>"
-	line = append(line, `},`...)
+func (c *Config) Print(line, fullText []byte) int {
+	n := 0
+	n += copy(line[n:], `{"name":"i3title","markup":"pango","align":`)
+	n += copy(line[n:], c.align) // "left"
+	n += copy(line[n:], `,"separator":`)
+	n += copy(line[n:], c.Separator) // false
+	n += copy(line[n:], `,"min_width":`)
+	n += copy(line[n:], c.minWidth) // 1234
+	n += copy(line[n:], `,"full_text":`)
+	n += copy(line[n:], c.Format[:c.formatIndex]) // "<span>
+	n += copy(line[n:], fullText)
+	n += copy(line[n:], c.Format[c.formatIndex+2:]) // </span>"
+	n += copy(line[n:], `},`)
 
-	return line
+	return n
 }
 
 func (c *Config) SetMinWidth(m []byte) {
-	c.minWidth = append(c.minWidth[:0], m...)
+	c.minWidth = c.minWidth[:copy(c.minWidth[:cap(c.minWidth)], m)]
 }
 
 func (c *Config) SetAlign(a []byte) {
 	switch a[0] {
 	case '0':
-		c.align = append(c.align[:0], `"left"`...)
+		c.align = c.align[:copy(c.align[:cap(c.align)], `"left"`)]
 	case '1':
-		c.align = append(c.align[:0], `"center"`...)
+		c.align = c.align[:copy(c.align[:cap(c.align)], `"center"`)]
 	case '2':
-		c.align = append(c.align[:0], `"right"`...)
+		c.align = c.align[:copy(c.align[:cap(c.align)], `"right"`)]
 	}
 }
 
@@ -89,9 +90,8 @@ func (c *Config) getAlign() byte {
 
 // reset resets dynamic fields back to what was read from the config file.
 func (c *Config) reset() {
-	// None of these should allocate if c was created via [newConfig]
-	c.minWidth = append(c.minWidth[:0], c.MinWidth...)
-	c.align = append(c.align[:0], c.Align...)
+	c.minWidth = c.minWidth[:copy(c.minWidth[:cap(c.minWidth)], c.MinWidth)]
+	c.align = c.align[:copy(c.align[:cap(c.align)], c.Align)]
 }
 
 // newConfig return a usable config.
