@@ -5,7 +5,7 @@
 readonly VERSION="@VERSION@"
 
 readonly DEFAULT_TIMEOUT=4
-readonly DEFAULT_TRANSIT=0.15 # Transition delay for ticker mode
+readonly DEFAULT_TRANSIT=0.1
 
 readonly RUNDIR=/dev/shm/i3toast
 readonly QUEUE_PIDS="$RUNDIR/queue.pids" # No flock: the execution model minimizes the chance of race reasonably well
@@ -21,38 +21,46 @@ SYNOPSIS
       STDIN | i3toast [OPTIONS]
 
 OPTIONS
-      -m MESSAGE    Display MESSAGE.
-      -f FORMAT     Format the message. The FORMAT should contain one %s.
-      -a ALIGN      Align the message: left, center, or right.
-      -o OFFSET     Add OFFSET spaces before the message.
-      -M MINWIDTH   Set the minimum width (in pixels) for the message.
-                    Higher values move the message closer to the workspace buttons.
-      -T TRIM       Trim the message to TRIM characters.
-      -t TIMEOUT    Keep the message for TIMEOUT (default: 4 seconds).
-      -i            Mark the message as important. Important messages are queued
-                    and displayed one at a time. Transient (unimportant) messages
-                    cannot interrupt them while they are running.
-      -R            Send the message in RAW MODE.
-      -w            Print the configured i3title minimum and maximum widths.
-	                Output can be used with eval like: eval $(i3title -w)
-      -e            Erase the current message.
-      -E            Clear the queue and erase the current message.
-      -h            Print usage.
-      -v            Print version.
+      -m, --message MESSAGE  Display MESSAGE.
+      -f, --format FORMAT    Format the message. FORMAT must contain one %s.
+      -a, --align ALIGN      Align the message: left, center, or right.
+                             Overrides "align" in config.
+      -o, --offset OFFSET    Add OFFSET spaces before the message.
+      -M, --min-width MINWP  Set the minimum width (in pixels) for the message.
+                             Overrides "min_width" in config.
+      -W, --max-width MAXWC  Set the maximum width (in characters) for the message.
+                             Text longer than this is trimmed.
+                             Cannot exceed "max_width" in config.
+      -t, --timeout TIMEOUT  Keep the message for TIMEOUT seconds (default: 4).
+      -T, --ticker TICK      Enable TICKER mode and set TICK as the minimum display time
+	                         (in seconds) per line.
+      -R, --raw              Send the message in RAW MODE.
+      -i, --important        Mark the message, or stream, as important.
+                             Important messages are queued and displayed one at a time.
+                             Transient (unimportant) messages cannot interrupt them while
+                             they are running. A stream is important until it reaches EOF.
+      -w, --widths           Print the configured i3title minimum and maximum widths.
+                             Output can be used with eval like: eval $(i3title -w)
+      -e, --erase            Erase the current message, as if TIMEOUT had elapsed.
+      -E, --clear            Terminate all queued messages and clear the queue (for debugging).
+      -h, --help             Print usage.
+      -v, --version          Print version.
 
 
 STDIN
   When input is provided on stdin, each line is treated as a separate message.
 
   You can tag the output like i3toast:<flag>[:<payload>] to adjust the
-  characteristics of the current stream:
+  characteristics of the current stream. Each tag takes effect immediately
+  and applies to subsequent messages:
 
       i3toast:-e           Erase the current message.
-      i3toast:-f:FORMAT    Set the message format.
-      i3toast:-a:ALIGN     Set the message alignment.
-      i3toast:-o:OFFSET    Set the message offset.
-      i3toast:-M:MINWIDTH  Set the message minimum width.
-      i3toast:-T:TRIM      Set the message trim width.
+      i3toast:-f:FORMAT    Set the stream format.
+      i3toast:-a:ALIGN     Set the stream alignment.
+      i3toast:-o:OFFSET    Set the stream offset.
+      i3toast:-M:MINWIDTH  Set the stream minimum width.
+      i3toast:-W:MAXWIDTH  Set the stream maximum width.
+      i3toast:-T:TICK      Set the stream TICKER mode.
 
 TIMEOUT
   TIMEOUT may be a single value or two comma-separated values:
@@ -98,6 +106,18 @@ TIMEOUT
           Keep intermittent messages indefinitely, but instantly timeout after
           the final one.
 
+TICKER
+  -T, --ticker TICK enables ticker mode. TICK sets how long each line rests
+  (in seconds) before it starts rolling to the next. Since the stream may
+  have its own pace, each line rests for at least TICK.
+
+  When TICK exceeds TIMEOUT, the message disappears before the next line is shown.
+
+  TICK may be two comma-separated values, TICK,TRANSITION, where TRANSITION
+  is how long the roll itself takes (default: 0.1). Quoting rules match TIMEOUT.
+
+  Ticker mode is enabled only when TICK > 0; 0 or an empty first field disables it.
+
 RAW MODE
   By default, i3title trims messages to the configured max_width and sanitizes
   them for safe display in i3bar. Raw mode (-R) disables both safeguards and
@@ -120,10 +140,11 @@ RAW MODE
       head -c 100 /dev/urandom | i3toast -R  # Don't do this
 
 EXAMPLES
-      i3toast -m "Hello!"
-      echo "Hello!" | i3toast
+      i3toast -m "Hello"
+      echo "Hello" | i3toast
       i3toast -i -m "Important message"
       i3toast -t 5 -o 10 -m "Shown for 5 seconds, offseted by 10 spaces"
+
 EOF
 }
 
@@ -150,40 +171,43 @@ setup_env() {
 
 parse_flags() {
 	_important=0
-	_ticker=0
 
-	# Set some fields directly to avoid their parsing process
-	align="$I3TITLE_ALIGN"
-	timeoutSTDIN=${DEFAULT_TIMEOUT}
-	timeoutEOF=${DEFAULT_TIMEOUT}
-	set_message ""
-	set_offset 0
-	set_format ""
+	set_timeout  "$DEFAULT_TIMEOUT"
+	set_message  ""
+	set_align    "$I3TITLE_ALIGN"
 	set_minwidth "$I3TITLE_MIN_WIDTH"
-	set_trim "$I3TITLE_MAX_WIDTH"
+	set_offset   0
+	set_format   ""
+	set_trim     "$I3TITLE_MAX_WIDTH"
+	set_ticker 0
 	raw_mode=0
 
 	while [ $# -gt 0 ]; do
 		case "$1" in
-		-m) shift; set_message  "$1" ;;
-		-t) shift; set_timeout  "$1" ;;
-		-f) shift; set_format   "$1" ;;
-		-o) shift; set_offset   "$1" ;;
-		-a) shift; set_align    "$1" ;;
-		-M) shift; set_minwidth "$1" ;;
-		-T) shift; set_trim     "$1" ;;
-		-N) shift; set_ticker   "$1" ;;
-		-i) _important=1             ;;
-		-R) raw_mode=1               ;;
-		-e) erase; exit 0 ;;
-		-E) :>"$QUEUE_PIDS"; erase; exit 0 ;;
-		-w) grep WIDTH "$config_path"; exit 0 ;;
-		-v) echo "i3toast $VERSION"; exit 0 ;;
-		-h) usage; exit 0 ;;
-		-*) printf 'Unknown option: %s\nUse i3toast -h to print usage.\n' "$1"; exit 1 ;;
+		-m | --message )   shift; set_message  "$1" ;;
+		-t | --timeout )   shift; set_timeout  "$1" ;;
+		-f | --format )    shift; set_format   "$1" ;;
+		-o | --offset )    shift; set_offset   "$1" ;;
+		-a | --align )     shift; set_align    "$1" ;;
+		-M | --min-width ) shift; set_minwidth "$1" ;;
+		-W | --max-width ) shift; set_trim     "$1" ;;
+		-T | --ticker )    shift; set_ticker   "$1" ;;
+		-R | --raw )       raw_mode=1               ;;
+		-i | --important ) _important=1             ;;
+		-e | --erase ) erase; exit 0 ;;
+		-E | --clear ) queue_clear; erase; exit 0 ;;
+		-w | --widths ) grep WIDTH "$config_path"; exit 0 ;;
+		-v | --version ) echo "i3toast $VERSION"; exit 0 ;;
+		-h | --help ) usage; exit 0 ;;
+		-*) printf 'i3toast: unknown option: %s\n\nuse i3toast -h to print usage\n' "$1" >&2; exit 1 ;;
 		esac
 		shift
 	done
+
+	if ticker && [ $raw_mode -eq 1 ]; then
+		echo "i3toast: raw mode and ticker mode cannot be combined (-R and -T)" >&2
+		exit 1
+	fi
 }
 
 set_message()  { message="$1";      }
@@ -192,7 +216,12 @@ set_trim()     { trim_width="$1";   }
 set_minwidth() { min_width="$1";    }
 
 set_timeout() {
+	timeoutSTDIN="$DEFAULT_TIMEOUT"
+	timeoutEOF="$DEFAULT_TIMEOUT"
 	case "$1" in
+	"$DEFAULT_TIMEOUT")
+		return # All set
+		;;
 	*,*)
 		timeoutSTDIN="$(echo "${1%,*}" | xargs)"
 		timeoutEOF="$(echo "${1#*,}" | xargs)"
@@ -207,22 +236,28 @@ set_timeout() {
 }
 
 set_ticker() {
-	_ticker=1
+	tickerDISPLAY=0 # Disabled by default
 	tickerTRANSIT="$DEFAULT_TRANSIT"
 	case "$1" in
+	0)
+		return # All set
+		;;
 	*,*)
 		tickerDISPLAY="$(echo "${1%,*}" | xargs)"
 		tickerTRANSIT="$(echo "${1#*,}" | xargs)"
 		;;
 	*)
 		tickerDISPLAY="$1"
+		tickerTRANSIT="$DEFAULT_TRANSIT"
 		;;
 	esac
 	: "${tickerTRANSIT:=${DEFAULT_TRANSIT}}"
 	if [ -z "$tickerDISPLAY" ]; then
-		_ticker=0 # User has to provide correct value for display time
+		tickerDISPLAY=0 # Disabled: a proper display time must be provided
 	fi
 }
+# Check whether the ticker mode is enabled
+ticker() { test "$tickerDISPLAY" != 0; }
 
 set_format() {
 	local fmt="$1"
@@ -242,7 +277,9 @@ set_format() {
 }
 
 set_align() {
+	align="$I3TITLE_ALIGN" # Default
 	case "$1" in
+	"$I3TITLE_ALIGN" ) return ;; # All set
 	l* ) align=0 ;; # left
 	c* ) align=1 ;; # center
 	r* ) align=2 ;; # right
@@ -266,10 +303,8 @@ decide_process() {
 }
 
 read_stdin() {
-	if ticker; then
-		ARS="$(printf '\036')"
-		prevMsg=""
-	fi
+	ARS="$(printf '\036')"
+	prevMsg=""
 
 	while IFS= read -r line || [ -n "$line" ]; do
 		if queue_busy && ! important; then
@@ -283,7 +318,7 @@ read_stdin() {
 			if ! ticker; then
 				send "$timeoutSTDIN" # Common path
 			else
-				set_message "${prevMsg}${ARS}${line}"; prevMsg="$line"
+				set_message "${prevMsg}${ARS}${line}"
 				send "$timeoutSTDIN"
 				sleep "$tickerTRANSIT"
 
@@ -291,6 +326,7 @@ read_stdin() {
 				send "$timeoutSTDIN"
 				sleep "$tickerDISPLAY"
 			fi
+			prevMsg="$line"
 			;; # message
 		1)
 			send "$timeoutSTDIN"
@@ -316,10 +352,11 @@ parse_stdin() {
 		case "$1" in # Slow path: It's a command, figure out which one
 		i3toast:-e   ) erase;                           rc=2 ;;
 		i3toast:-f:* ) set_format   "${1#i3toast:-f:}"; rc=1 ;;
-		i3toast:-o:* ) set_offset   "${1#i3toast:-o:}"; rc=1 ;;
-		i3toast:-T:* ) set_trim     "${1#i3toast:-T:}"; rc=1 ;;
-		i3toast:-M:* ) set_minwidth "${1#i3toast:-M:}"; rc=1 ;;
 		i3toast:-a:* ) set_align    "${1#i3toast:-a:}"; rc=1 ;;
+		i3toast:-o:* ) set_offset   "${1#i3toast:-o:}"; rc=1 ;;
+		i3toast:-M:* ) set_minwidth "${1#i3toast:-M:}"; rc=1 ;;
+		i3toast:-W:* ) set_trim     "${1#i3toast:-W:}"; rc=1 ;;
+		i3toast:-T:* ) set_ticker   "${1#i3toast:-T:}"; rc=1 ;;
 		*            ) set_message  "${1}" ;; # Catch the error a message
 		esac ;;
 	* )
@@ -347,8 +384,6 @@ send() {
 
 erase() { send 0; }
 
-ticker()  { test "$_ticker" -eq 1; }
-
 important()  { test "$_important" -eq 1; }
 # Check whether the queue is busy (an important message is running)
 queue_busy() { test -s "$QUEUE_PIDS"; }
@@ -362,6 +397,14 @@ queue_next() {
 	if [ -n "$next_pid" ] && kill -0 "$next_pid"; then
 		kill -s CONT "$next_pid"
 	fi
+}
+# Terminate all queued processes and clear the queue (for debugging)
+queue_clear() {
+	while IFS= read -r pid; do
+        kill -TERM "$pid" 2>/dev/null
+        kill -CONT "$pid" 2>/dev/null
+    done <"$QUEUE_PIDS"
+    : >"$QUEUE_PIDS"
 }
 
 # shellcheck disable=2120 # indirect argument is passed with trap statement

@@ -102,11 +102,17 @@ that appear on your bar and disappear after a timeout (default is 4 seconds.)
 
 ### One-shot messages (Toasts)
 
-Send a quick, temporary update from a script or keybind. Perfect for volume or brightness adjustments:
+- Send a quick, temporary update from a script or keybind — via `-m`:
 
 ```sh
 # This could be from a volume adjustment script, informing you about the change.
 i3toast -m "🔊 ${volume}%" -f "<span font='bold italic 15'>%s</span>"
+```
+
+- Or by piping a command's output:
+```sh
+bindsym $super+w exec curl https://wttr.in/?format=2 | i3toast \
+    -f "<span bgcolor='green' fgcolor='black' font='bold'> W:☂️ </span> %s"
 ```
 
 ### Piping continuous data
@@ -141,15 +147,14 @@ corresponding status modules in your i3status config. This frees up space, givin
         # Whatever you print to stdout is considered a message.
         echo "This is a message!"
 
-        ### You can tag the output like i3toast:<flag>[:<payload>] to adjust the
-        ### characteristics of the current stream:
+        ### Tag the output like i3toast:<flag>[:<payload>] to adjust the stream.
+        ### Each tag takes effect immediately and applies to subsequent messages:
 
-        echo "i3toast:-e"           # Erase the current message
-        echo "i3toast:-f:<b>%s</b>" # Set the format
-        echo "i3toast:-a:center"    # Set the message alignment
-        echo "i3toast:-o:10"        # Set the offset
-        echo "i3toast:-M:800"       # Set the message minimum width (in pixels)
-        echo "i3toast:-T:60"        # Set the trim width
+        echo "i3toast:-f:Now in bold: <b>%s</b>"  # Format
+        echo "i3toast:-a:center"                  # Align
+        echo "i3toast:-T:3"                       # Ticker mode
+
+        ### See STDIN in usage (i3toast -h) for the flags you can pass as tags.
 
     } | i3toast
 
@@ -157,7 +162,7 @@ corresponding status modules in your i3status config. This frees up space, givin
 
 
 <details>
-    <summary><b>Full usage and options</b></summary>
+    <summary><b>Full usage and options:</b> <code>i3toast -h</code></summary>
 
 ```text
 
@@ -169,38 +174,46 @@ SYNOPSIS
       STDIN | i3toast [OPTIONS]
 
 OPTIONS
-      -m MESSAGE    Display MESSAGE.
-      -f FORMAT     Format the message. The FORMAT should contain one %s.
-      -a ALIGN      Align the message: left, center, or right.
-      -o OFFSET     Add OFFSET spaces before the message.
-      -M MINWIDTH   Set the minimum width (in pixels) for the message.
-                    Higher values move the message closer to the workspace buttons.
-      -T TRIM       Trim the message to TRIM characters.
-      -t TIMEOUT    Keep the message for TIMEOUT (default: 4 seconds).
-      -i            Mark the message as important. Important messages are queued
-                    and displayed one at a time. Transient (unimportant) messages
-                    cannot interrupt them while they are running.
-      -R            Send the message in RAW MODE.
-      -w            Print the configured i3title minimum and maximum widths.
-	                Output can be used with eval like: eval $(i3title -w)
-      -e            Erase the current message.
-      -E            Clear the queue and erase the current message.
-      -h            Print usage.
-      -v            Print version.
+      -m, --message MESSAGE  Display MESSAGE.
+      -f, --format FORMAT    Format the message. FORMAT must contain one %s.
+      -a, --align ALIGN      Align the message: left, center, or right.
+                             Overrides "align" in config.
+      -o, --offset OFFSET    Add OFFSET spaces before the message.
+      -M, --min-width MINWP  Set the minimum width (in pixels) for the message.
+                             Overrides "min_width" in config.
+      -W, --max-width MAXWC  Set the maximum width (in characters) for the message.
+                             Text longer than this is trimmed.
+                             Cannot exceed "max_width" in config.
+      -t, --timeout TIMEOUT  Keep the message for TIMEOUT seconds (default: 4).
+      -T, --ticker TICK      Enable TICKER mode and set TICK as the minimum display time
+	                         (in seconds) per line.
+      -R, --raw              Send the message in RAW MODE.
+      -i, --important        Mark the message, or stream, as important.
+                             Important messages are queued and displayed one at a time.
+                             Transient (unimportant) messages cannot interrupt them while
+                             they are running. A stream is important until it reaches EOF.
+      -w, --widths           Print the configured i3title minimum and maximum widths.
+                             Output can be used with eval like: eval $(i3title -w)
+      -e, --erase            Erase the current message, as if TIMEOUT had elapsed.
+      -E, --clear            Terminate all queued messages and clear the queue (for debugging).
+      -h, --help             Print usage.
+      -v, --version          Print version.
 
 
 STDIN
   When input is provided on stdin, each line is treated as a separate message.
 
   You can tag the output like i3toast:<flag>[:<payload>] to adjust the
-  characteristics of the current stream:
+  characteristics of the current stream. Each tag takes effect immediately
+  and applies to subsequent messages:
 
       i3toast:-e           Erase the current message.
-      i3toast:-f:FORMAT    Set the message format.
-      i3toast:-a:ALIGN     Set the message alignment.
-      i3toast:-o:OFFSET    Set the message offset.
-      i3toast:-M:MINWIDTH  Set the message minimum width.
-      i3toast:-T:TRIM      Set the message trim width.
+      i3toast:-f:FORMAT    Set the stream format.
+      i3toast:-a:ALIGN     Set the stream alignment.
+      i3toast:-o:OFFSET    Set the stream offset.
+      i3toast:-M:MINWIDTH  Set the stream minimum width.
+      i3toast:-W:MAXWIDTH  Set the stream maximum width.
+      i3toast:-T:TICK      Set the stream TICKER mode.
 
 TIMEOUT
   TIMEOUT may be a single value or two comma-separated values:
@@ -246,6 +259,18 @@ TIMEOUT
           Keep intermittent messages indefinitely, but instantly timeout after
           the final one.
 
+TICKER
+  -T, --ticker TICK enables ticker mode. TICK sets how long each line rests
+  (in seconds) before it starts rolling to the next. Since the stream may
+  have its own pace, each line rests for at least TICK.
+
+  When TICK exceeds TIMEOUT, the message disappears before the next line is shown.
+
+  TICK may be two comma-separated values, TICK,TRANSITION, where TRANSITION
+  is how long the roll itself takes (default: 0.1). Quoting rules match TIMEOUT.
+
+  Ticker mode is enabled only when TICK > 0; 0 or an empty first field disables it.
+
 RAW MODE
   By default, i3title trims messages to the configured max_width and sanitizes
   them for safe display in i3bar. Raw mode (-R) disables both safeguards and
@@ -268,8 +293,8 @@ RAW MODE
       head -c 100 /dev/urandom | i3toast -R  # Don't do this
 
 EXAMPLES
-      i3toast -m "Hello!"
-      echo "Hello!" | i3toast
+      i3toast -m "Hello"
+      echo "Hello" | i3toast
       i3toast -i -m "Important message"
       i3toast -t 5 -o 10 -m "Shown for 5 seconds, offseted by 10 spaces"
 
