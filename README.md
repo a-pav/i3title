@@ -1,7 +1,6 @@
-<p align="center">
+<!-- <p align="center">
   <img width="321" height="26" alt="demo" src="https://github.com/user-attachments/assets/acb34afb-f877-4708-aff7-b727314b234e" />
-</p>
-
+</p> -->
 
 # i3title
 
@@ -19,9 +18,12 @@ format it on the fly, and trigger instant updates—all without touching your co
 
 ## Demo
 
-https://github.com/user-attachments/assets/7846a025-db57-4143-86a4-0313c08b74e7
+<details>
+	<summary><strong>video:</strong> <i>(Best viewed on desktop in fullscreen)</i></summary>
 
-<sub><strong>Note:</strong> The demo video is best viewed on a desktop in fullscreen.</sub>
+https://github.com/user-attachments/assets/7846a025-db57-4143-86a4-0313c08b74e7
+</details>
+<img width="595" height="26" alt="demo.ticker.gif" src="https://github.com/user-attachments/assets/ee9b6bd7-0212-4fd2-86a9-ed1b49b94e7a" />
 
 ## Features
  - **Zero-Configuration Defaults** – Shows the active window title and i3 mode out of the box.
@@ -104,16 +106,17 @@ that appear on your bar and disappear after a timeout (default is 4 seconds.)
 
 - Send a quick, temporary update from a script or keybind — via `-m`:
 
-```sh
-# This could be from a volume adjustment script, informing you about the change.
-i3toast -m "🔊 ${volume}%" -f "<span font='bold italic 15'>%s</span>"
-```
+    ```sh
+    # This could be from a volume adjustment script, informing you about the change.
+    i3toast -m "🔊 ${volume}%" -f "<span font='bold italic 15'>%s</span>"
+    ```
 
 - Or by piping a command's output:
-```sh
-bindsym $super+w exec curl https://wttr.in/?format=2 | i3toast \
-    -f "<span bgcolor='green' fgcolor='black' font='bold'> W:☂️ </span> %s"
-```
+    ```sh
+    bindsym $super+w exec curl https://wttr.in/?format=2 | i3toast \
+        -f "<span bgcolor='green' fgcolor='black' font='bold'> W:☂️ </span> %s"
+    ```
+    <img width="450" height="26" alt="demo.i3toast.gif" src="https://github.com/user-attachments/assets/08800cd3-b164-4ff7-9fd6-98a5454731ad" />
 
 ### Piping continuous data
 
