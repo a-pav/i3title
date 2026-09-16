@@ -7,7 +7,8 @@ import (
 
 	"github.com/a-pav/i3title/internal/bbuf"
 	"github.com/a-pav/i3title/internal/config"
-	"github.com/a-pav/i3title/internal/i3msg"
+	"github.com/a-pav/i3title/internal/report/i3ipc"
+	"github.com/a-pav/i3title/internal/report/i3msg"
 )
 
 const (
@@ -56,7 +57,7 @@ func Run(cfg *config.Config) error {
 	if cfg.I3Msg {
 		go i3msg.Subscribe(titleCh, modeCh, i3Done, errCh)
 	} else {
-		go subscribe(titleCh, modeCh, i3Done, errCh)
+		go i3ipc.Subscribe(titleCh, modeCh, i3Done, errCh)
 	}
 
 	return <-errCh

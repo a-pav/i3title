@@ -14,7 +14,7 @@ var (
 	titleKey  = []byte(`"title":"`)
 )
 
-// Subscribe to title and mode event via `i3-msg` command.
+// Subscribe to title and mode event via i3-msg (child process).
 func Subscribe(titelCh, modeCh chan<- []byte, i3Done <-chan struct{}, errCh chan<- error) {
 	// The event type `"i3title"` is ignored by i3-msg,
 	// but appears in the process name, serving as a visual hint.
@@ -30,10 +30,6 @@ func Subscribe(titelCh, modeCh chan<- []byte, i3Done <-chan struct{}, errCh chan
 		errCh <- fmt.Errorf("i3msg: pipe: %v", err)
 		return
 	}
-	if err := cmd.Start(); err != nil {
-		errCh <- fmt.Errorf("i3msg: start: %v", err)
-		return
-	}
 	// Initialize the scanner
 	const (
 		// Buffer sizes for `i3-msg` scanner
@@ -43,9 +39,16 @@ func Subscribe(titelCh, modeCh chan<- []byte, i3Done <-chan struct{}, errCh chan
 	scnr := bufio.NewScanner(pipe)
 	scnr.Buffer(make([]byte, minBufSize), maxBufSize)
 
+	if err := cmd.Start(); err != nil {
+		errCh <- fmt.Errorf("i3msg: start: %v", err)
+		return
+	}
+
 	go subscribe(scnr, titelCh, modeCh, i3Done, errCh)
 
-	errCh <- fmt.Errorf("i3-msg: %v", cmd.Wait())
+	if err := cmd.Wait(); err != nil {
+		errCh <- fmt.Errorf("i3-msg command: %v", err)
+	}
 }
 
 func subscribe(scnr *bufio.Scanner, titelCh, modeCh chan<- []byte, i3Done <-chan struct{}, errCh chan<- error) {
