@@ -318,11 +318,12 @@ read_stdin() {
 			if ! ticker; then
 				send "$timeoutSTDIN" # Common path
 			else
-				set_message "${prevMsg}${ARS}${line}"
-				send "$timeoutSTDIN"
-				sleep "$tickerTRANSIT"
-
-				set_message "${line}"
+				if [ "$tickerTRANSIT" != 0 ]; then
+					set_message "${prevMsg}${ARS}${line}"
+					send "$timeoutSTDIN"
+					sleep "$tickerTRANSIT"
+					set_message "${line}"
+				fi
 				send "$timeoutSTDIN"
 				sleep "$tickerDISPLAY"
 			fi
