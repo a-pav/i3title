@@ -23,7 +23,8 @@ format it on the fly, and trigger instant updates—all without touching your co
 
 https://github.com/user-attachments/assets/7846a025-db57-4143-86a4-0313c08b74e7
 </details>
-<img width="460" height="26" alt="demo ticker" src="https://github.com/user-attachments/assets/9a534fd3-e71f-4c93-8d83-e45f9f60486b" />
+<img width="460" height="26" alt="demo.ticker.gif" src="https://github.com/user-attachments/assets/495ee85f-ed26-459e-ac6b-a8722db537ef" />
+
 
 
 ## Features
