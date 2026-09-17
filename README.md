@@ -23,7 +23,8 @@ format it on the fly, and trigger instant updates—all without touching your co
 
 https://github.com/user-attachments/assets/7846a025-db57-4143-86a4-0313c08b74e7
 </details>
-<img width="595" height="26" alt="demo.ticker.gif" src="https://github.com/user-attachments/assets/ee9b6bd7-0212-4fd2-86a9-ed1b49b94e7a" />
+<img width="460" height="26" alt="demo ticker" src="https://github.com/user-attachments/assets/9a534fd3-e71f-4c93-8d83-e45f9f60486b" />
+
 
 ## Features
  - **Zero-Configuration Defaults** – Shows the active window title and i3 mode out of the box.
@@ -119,9 +120,6 @@ that appear on your bar and disappear after a timeout (default is 4 seconds.)
     <img width="450" height="26" alt="demo.i3toast.gif" src="https://github.com/user-attachments/assets/08800cd3-b164-4ff7-9fd6-98a5454731ad" />
 
 ### Piping continuous data
-
-You can also pipe standard output directly into `i3toast` for real-time updates.
-Common use cases include:
 
 - Show the current date and time for 7 seconds, then disappear instantly.
 
