@@ -218,6 +218,8 @@ STDIN
       i3toast:-T:TICK      Set the stream TICKER mode.
 
 TIMEOUT
+  A whole number of seconds (no fractions).
+
   TIMEOUT may be a single value or two comma-separated values:
 
       TIMEOUT
@@ -263,8 +265,8 @@ TIMEOUT
 
 TICKER
   -T, --ticker TICK enables ticker mode. TICK sets how long each line rests
-  (in seconds) before it starts rolling to the next. Since the stream may
-  have its own pace, each line rests for at least TICK.
+  (in seconds, fractions allowed) before it starts rolling to the next. Since
+  the stream may have its own pace, each line rests for at least TICK.
 
   When TICK exceeds TIMEOUT, the message disappears before the next line is shown.
 

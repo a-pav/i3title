@@ -63,6 +63,8 @@ STDIN
       i3toast:-T:TICK      Set the stream TICKER mode.
 
 TIMEOUT
+  A whole number of seconds (no fractions).
+
   TIMEOUT may be a single value or two comma-separated values:
 
       TIMEOUT
@@ -108,8 +110,8 @@ TIMEOUT
 
 TICKER
   -T, --ticker TICK enables ticker mode. TICK sets how long each line rests
-  (in seconds) before it starts rolling to the next. Since the stream may
-  have its own pace, each line rests for at least TICK.
+  (in seconds, fractions allowed) before it starts rolling to the next. Since
+  the stream may have its own pace, each line rests for at least TICK.
 
   When TICK exceeds TIMEOUT, the message disappears before the next line is shown.
 
@@ -147,6 +149,9 @@ EXAMPLES
 
 EOF
 }
+
+# Echo message to stderr, print label with non-empty message
+erro() { echo "${1:+i3toast: }$1" >&2; }
 
 setup_env() {
 	if [ -n "$XDG_CONFIG_HOME" ]; then
@@ -199,14 +204,13 @@ parse_flags() {
 		-w | --widths ) grep WIDTH "$config_path"; exit 0 ;;
 		-v | --version ) echo "i3toast $VERSION"; exit 0 ;;
 		-h | --help ) usage; exit 0 ;;
-		-*) printf 'i3toast: unknown option: %s\n\nuse i3toast -h to print usage\n' "$1" >&2; exit 1 ;;
+		-*) erro "unknown option: $1"; erro "use i3toast -h to print usage"; exit 1 ;;
 		esac
 		shift
 	done
 
 	if ticker && [ $raw_mode -eq 1 ]; then
-		echo "i3toast: raw mode and ticker mode cannot be combined (-R and -T)" >&2
-		exit 1
+		erro "raw mode and ticker mode cannot be combined (-R and -T)"; exit 1
 	fi
 }
 
@@ -216,31 +220,36 @@ set_trim()     { trim_width="$1";   }
 set_minwidth() { min_width="$1";    }
 
 set_timeout() {
+	local errmsg="timeout (-t) expects a whole number or a comma-separated pair; got: $1"
 	timeoutSTDIN="$DEFAULT_TIMEOUT"
 	timeoutEOF="$DEFAULT_TIMEOUT"
 	case "$1" in
-	"$DEFAULT_TIMEOUT")
-		return # All set
+	"$DEFAULT_TIMEOUT") return # All set
+		;;
+	*.*) erro "$errmsg"; exit 1 # Reject floating points
 		;;
 	*,*)
 		timeoutSTDIN="$(echo "${1%,*}" | xargs)"
 		timeoutEOF="$(echo "${1#*,}" | xargs)"
 		;;
 	*)
-		timeoutSTDIN="$1"
-		timeoutEOF="$1"
+		timeoutSTDIN="$(echo "$1" | xargs)"
+		timeoutEOF="$timeoutSTDIN" # Single value applies to both
 		;;
 	esac
-	: "${timeoutSTDIN:=${DEFAULT_TIMEOUT}}"
+	: "${timeoutSTDIN:=${DEFAULT_TIMEOUT}}"   # Input validation
 	: "${timeoutEOF:=${DEFAULT_TIMEOUT}}"
+	if nan "$timeoutSTDIN" || nan "$timeoutEOF"; then
+		erro "$errmsg"; exit 1
+	fi
 }
 
 set_ticker() {
+	local errmsg="ticker (-T) expects a number or a comma-separated pair; got: $1"
 	tickerDISPLAY=0 # Disabled by default
 	tickerTRANSIT="$DEFAULT_TRANSIT"
 	case "$1" in
-	0)
-		return # All set
+	0) return # All set
 		;;
 	*,*)
 		tickerDISPLAY="$(echo "${1%,*}" | xargs)"
@@ -251,13 +260,24 @@ set_ticker() {
 		tickerTRANSIT="$DEFAULT_TRANSIT"
 		;;
 	esac
-	: "${tickerTRANSIT:=${DEFAULT_TRANSIT}}"
+	: "${tickerTRANSIT:=${DEFAULT_TRANSIT}}"   # Input validation
 	if [ -z "$tickerDISPLAY" ]; then
-		tickerDISPLAY=0 # Disabled: a proper display time must be provided
+		tickerDISPLAY=0 # Disable: a proper display time must be provided
+	fi
+	if nan "$tickerDISPLAY" || nan "$tickerTRANSIT"; then
+		erro "$errmsg"; exit 1
 	fi
 }
 # Check whether the ticker mode is enabled
 ticker() { test "$tickerDISPLAY" != 0; }
+
+# Check whether the argument is not a number (NaN)
+nan() {
+	case "${1#[-+]}" in
+    '' | '.' | *.*.* | *[!0-9\.]* ) return 0 ;; # NaN
+    * ) return 1 ;; # Integer or floating point
+	esac
+}
 
 set_format() {
 	local fmt="$1"
@@ -368,10 +388,9 @@ parse_stdin() {
 }
 
 send() {
-	local timeout="$1"
-
+	# $1: timeout
 	printf '%s\036%s\036%s\036%s\036%s\036%s\036%s\036%s\036%s\036%s\n' \
-		"${timeout}" \
+		"${1}" \
 		"${align}" \
 		"${min_width}" \
 		"${offset_width}" \
