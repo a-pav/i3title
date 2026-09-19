@@ -46,9 +46,9 @@ func Subscribe(titelCh, modeCh chan<- []byte, i3Done <-chan struct{}, errCh chan
 
 	go subscribe(scnr, titelCh, modeCh, i3Done, errCh)
 
-	if err := cmd.Wait(); err != nil {
-		errCh <- fmt.Errorf("i3-msg command: %v", err)
-	}
+	err = cmd.Wait()
+
+	errCh <- fmt.Errorf("i3-msg child process exited: %v", err)
 }
 
 func subscribe(scnr *bufio.Scanner, titelCh, modeCh chan<- []byte, i3Done <-chan struct{}, errCh chan<- error) {
