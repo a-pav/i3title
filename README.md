@@ -17,14 +17,15 @@ format it on the fly, and trigger instant updates—all without touching your co
 ---
 
 ## Demo
+<img width="460" height="26" alt="demo.ticker.gif" src="https://github.com/user-attachments/assets/495ee85f-ed26-459e-ac6b-a8722db537ef" />
+
+*Not sure what you'd use it for? [See it in practice ↓](#in-practice)*
 
 <details>
-	<summary><strong>video:</strong> <i>(Best viewed on desktop in fullscreen)</i></summary>
+	<summary><strong>video</strong> (Best viewed on desktop in fullscreen)</summary>
 
 https://github.com/user-attachments/assets/7846a025-db57-4143-86a4-0313c08b74e7
 </details>
-<img width="460" height="26" alt="demo.ticker.gif" src="https://github.com/user-attachments/assets/495ee85f-ed26-459e-ac6b-a8722db537ef" />
-
 
 
 ## Features
@@ -305,6 +306,13 @@ EXAMPLES
 ```
 
 </details>
+
+---
+## In Practice
+
+<img width="460" height="26" alt="demo.usecases.gif" src="https://github.com/user-attachments/assets/44cf26c5-1e18-4dba-acf9-22dcf20c7e21" />
+
+`i3title` cycling through different data sources — window title and mode from i3, plus weather and other script outputs. The quick succession is just for the demo; how long each message stays is up to you.
 
 ---
 ## Acknowledgments
